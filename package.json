@@ -1,5 +1,5 @@
 {
-  "name": "actual-expo-temp",
+  "name": "actual-expo",
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
@@ -8,7 +8,10 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
@@ -40,7 +43,8 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
-    "typescript": "~5.9.2"
+    "typescript": "~5.9.2",
+    "vitest": "^4.0.18"
   },
   "private": true
 }
