@@ -319,7 +319,7 @@ class TransactionMapper {
 ### SQLiteAccountRepository
 
 ```typescript
-class SQLiteAccountRepository implements IAccountRepository {
+class SQLiteAccountRepository implements AccountRepository {
   constructor(private db: SQLiteDatabase) {}
 
   async findById(id: EntityId): Promise<Account | null> {
@@ -371,7 +371,7 @@ class SQLiteAccountRepository implements IAccountRepository {
 ### SQLiteTransactionRepository
 
 ```typescript
-class SQLiteTransactionRepository implements ITransactionRepository {
+class SQLiteTransactionRepository implements TransactionRepository {
   constructor(private db: SQLiteDatabase) {}
 
   async findById(id: EntityId): Promise<Transaction | null> {

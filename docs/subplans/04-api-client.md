@@ -505,12 +505,12 @@ interface EncryptedData {
   data: Uint8Array
 }
 
-interface IEncryptionService {
+interface EncryptionService {
   encrypt(data: Uint8Array, key: CryptoKey): Promise<EncryptedData>
   decrypt(encrypted: EncryptedData, key: CryptoKey): Promise<Uint8Array>
 }
 
-class AESEncryptionService implements IEncryptionService {
+class AESEncryptionService implements EncryptionService {
   async encrypt(data: Uint8Array, key: CryptoKey): Promise<EncryptedData> {
     // Generar IV aleatorio de 12 bytes
     const iv = crypto.getRandomValues(new Uint8Array(12))

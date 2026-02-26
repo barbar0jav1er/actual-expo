@@ -163,9 +163,9 @@ interface CreateAccountOutput {
 
 class CreateAccount implements UseCase<CreateAccountInput, CreateAccountOutput> {
   constructor(
-    private accountRepo: IAccountRepository,
-    private payeeRepo: IPayeeRepository,
-    private syncService: ISyncService
+    private accountRepo: AccountRepository,
+    private payeeRepo: PayeeRepository,
+    private syncService: SyncService
   ) {}
 
   async execute(input: CreateAccountInput): Promise<CreateAccountOutput> {
@@ -223,8 +223,8 @@ interface GetAccountsOutput {
 
 class GetAccounts implements UseCase<void, GetAccountsOutput> {
   constructor(
-    private accountRepo: IAccountRepository,
-    private transactionRepo: ITransactionRepository
+    private accountRepo: AccountRepository,
+    private transactionRepo: TransactionRepository
   ) {}
 
   async execute(): Promise<GetAccountsOutput> {
@@ -279,11 +279,11 @@ interface CreateTransactionOutput {
 
 class CreateTransaction implements UseCase<CreateTransactionInput, CreateTransactionOutput> {
   constructor(
-    private transactionRepo: ITransactionRepository,
-    private accountRepo: IAccountRepository,
-    private categoryRepo: ICategoryRepository,
-    private payeeRepo: IPayeeRepository,
-    private syncService: ISyncService
+    private transactionRepo: TransactionRepository,
+    private accountRepo: AccountRepository,
+    private categoryRepo: CategoryRepository,
+    private payeeRepo: PayeeRepository,
+    private syncService: SyncService
   ) {}
 
   async execute(input: CreateTransactionInput): Promise<CreateTransactionOutput> {
@@ -384,10 +384,10 @@ interface GetTransactionsOutput {
 
 class GetTransactions implements UseCase<GetTransactionsInput, GetTransactionsOutput> {
   constructor(
-    private transactionRepo: ITransactionRepository,
-    private accountRepo: IAccountRepository,
-    private categoryRepo: ICategoryRepository,
-    private payeeRepo: IPayeeRepository
+    private transactionRepo: TransactionRepository,
+    private accountRepo: AccountRepository,
+    private categoryRepo: CategoryRepository,
+    private payeeRepo: PayeeRepository
   ) {}
 
   async execute(input: GetTransactionsInput): Promise<GetTransactionsOutput> {
@@ -554,10 +554,10 @@ interface ApplyRemoteChangesInput {
 class ApplyRemoteChanges implements UseCase<ApplyRemoteChangesInput, void> {
   constructor(
     private syncRepo: ISyncRepository,
-    private accountRepo: IAccountRepository,
-    private transactionRepo: ITransactionRepository,
-    private categoryRepo: ICategoryRepository,
-    private payeeRepo: IPayeeRepository
+    private accountRepo: AccountRepository,
+    private transactionRepo: TransactionRepository,
+    private categoryRepo: CategoryRepository,
+    private payeeRepo: PayeeRepository
   ) {}
 
   async execute(input: ApplyRemoteChangesInput): Promise<void> {

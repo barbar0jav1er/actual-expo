@@ -43,10 +43,10 @@ actual-expo/
         │   └── index.ts
         ├── ports/
         │   └── repositories/
-        │       ├── IAccountRepository.ts
-        │       ├── ITransactionRepository.ts
-        │       ├── ICategoryRepository.ts
-        │       ├── IPayeeRepository.ts
+        │       ├── AccountRepository.ts
+        │       ├── TransactionRepository.ts
+        │       ├── CategoryRepository.ts
+        │       ├── PayeeRepository.ts
         │       └── index.ts
         ├── errors/
         │   ├── DomainError.ts
@@ -482,10 +482,10 @@ class Payee {
 
 ## Ports (Repository Interfaces)
 
-### IAccountRepository
+### AccountRepository
 
 ```typescript
-interface IAccountRepository {
+interface AccountRepository {
   findById(id: EntityId): Promise<Account | null>
   findAll(): Promise<Account[]>
   findActive(): Promise<Account[]>
@@ -494,10 +494,10 @@ interface IAccountRepository {
 }
 ```
 
-### ITransactionRepository
+### TransactionRepository
 
 ```typescript
-interface ITransactionRepository {
+interface TransactionRepository {
   findById(id: EntityId): Promise<Transaction | null>
   findByAccount(accountId: EntityId): Promise<Transaction[]>
   findByDateRange(
@@ -512,10 +512,10 @@ interface ITransactionRepository {
 }
 ```
 
-### ICategoryRepository
+### CategoryRepository
 
 ```typescript
-interface ICategoryRepository {
+interface CategoryRepository {
   findById(id: EntityId): Promise<Category | null>
   findAll(): Promise<Category[]>
   findByGroup(groupId: EntityId): Promise<Category[]>
@@ -523,7 +523,7 @@ interface ICategoryRepository {
   delete(id: EntityId): Promise<void>
 }
 
-interface ICategoryGroupRepository {
+interface CategoryGroupRepository {
   findById(id: EntityId): Promise<CategoryGroup | null>
   findAll(): Promise<CategoryGroup[]>
   save(group: CategoryGroup): Promise<void>
@@ -531,10 +531,10 @@ interface ICategoryGroupRepository {
 }
 ```
 
-### IPayeeRepository
+### PayeeRepository
 
 ```typescript
-interface IPayeeRepository {
+interface PayeeRepository {
   findById(id: EntityId): Promise<Payee | null>
   findAll(): Promise<Payee[]>
   findByName(name: string): Promise<Payee | null>

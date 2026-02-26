@@ -487,7 +487,7 @@ interface SetBudgetAmountInput {
 class SetBudgetAmount implements UseCase<SetBudgetAmountInput, void> {
   constructor(
     private budgetRepo: IBudgetRepository,
-    private syncService: ISyncService
+    private syncService: SyncService
   ) {}
 
   async execute(input: SetBudgetAmountInput): Promise<void> {
@@ -537,9 +537,9 @@ interface GetBudgetSummaryOutput {
 class GetBudgetSummary implements UseCase<GetBudgetSummaryInput, GetBudgetSummaryOutput> {
   constructor(
     private budgetRepo: IBudgetRepository,
-    private categoryRepo: ICategoryRepository,
-    private categoryGroupRepo: ICategoryGroupRepository,
-    private transactionRepo: ITransactionRepository,
+    private categoryRepo: CategoryRepository,
+    private categoryGroupRepo: CategoryGroupRepository,
+    private transactionRepo: TransactionRepository,
     private calculationService: BudgetCalculationService
   ) {}
 
@@ -590,7 +590,7 @@ interface CopyBudgetMonthInput {
 class CopyBudgetMonth implements UseCase<CopyBudgetMonthInput, void> {
   constructor(
     private budgetRepo: IBudgetRepository,
-    private syncService: ISyncService
+    private syncService: SyncService
   ) {}
 
   async execute(input: CopyBudgetMonthInput): Promise<void> {

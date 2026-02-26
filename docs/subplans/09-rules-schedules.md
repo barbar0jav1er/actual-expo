@@ -26,8 +26,8 @@ src/
 │   │   └── RecurrencePattern.ts
 │   └── ports/
 │       └── repositories/
-│           ├── IRuleRepository.ts
-│           └── IScheduleRepository.ts
+│           ├── RuleRepository.ts
+│           └── ScheduleRepository.ts
 ├── infrastructure/
 │   └── persistence/
 │       └── sqlite/
@@ -499,7 +499,7 @@ interface MatchContext {
 }
 
 class RuleEngineService {
-  constructor(private ruleRepo: IRuleRepository) {}
+  constructor(private ruleRepo: RuleRepository) {}
 
   async applyRules(
     transactions: Transaction[],
@@ -558,8 +558,8 @@ interface CreateRuleInput {
 
 class CreateRule implements UseCase<CreateRuleInput, { ruleId: string }> {
   constructor(
-    private ruleRepo: IRuleRepository,
-    private syncService: ISyncService
+    private ruleRepo: RuleRepository,
+    private syncService: SyncService
   ) {}
 
   async execute(input: CreateRuleInput): Promise<{ ruleId: string }> {
@@ -615,9 +615,9 @@ interface GetUpcomingSchedulesOutput {
 
 class GetUpcomingSchedules implements UseCase<void, GetUpcomingSchedulesOutput> {
   constructor(
-    private scheduleRepo: IScheduleRepository,
-    private accountRepo: IAccountRepository,
-    private payeeRepo: IPayeeRepository
+    private scheduleRepo: ScheduleRepository,
+    private accountRepo: AccountRepository,
+    private payeeRepo: PayeeRepository
   ) {}
 
   async execute(): Promise<GetUpcomingSchedulesOutput> {
