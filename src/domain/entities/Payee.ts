@@ -76,6 +76,10 @@ export class Payee {
     this.props.name = trimmed
   }
 
+  setTransferAccount(accountId: EntityId | undefined): void {
+    this.props.transferAccountId = accountId
+  }
+
   delete(): void {
     this.props.tombstone = true
   }

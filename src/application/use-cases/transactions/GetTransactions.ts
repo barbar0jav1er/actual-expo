@@ -95,7 +95,7 @@ export class GetTransactions {
       categoryId: category?.id.toString(),
       categoryName: category?.name,
       payeeId: payee?.id.toString(),
-      payeeName: payee?.name,
+      payeeName: this.resolvePayeeName(payee, accounts),
       amount: tx.amount.toCents(),
       date: tx.date.toString(),
       notes: tx.notes,
@@ -114,5 +114,16 @@ export class GetTransactions {
     }
 
     return dto
+  }
+
+  private resolvePayeeName(
+    payee: Payee | undefined,
+    accounts: Map<string, Account>
+  ): string | undefined {
+    if (!payee) return undefined
+    if (payee.isTransferPayee && payee.transferAccountId) {
+      return (accounts.get(payee.transferAccountId.toString())?.name ?? payee.name) || undefined
+    }
+    return payee.name || undefined
   }
 }

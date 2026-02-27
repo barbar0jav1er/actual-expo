@@ -299,6 +299,13 @@ export class ApplyRemoteChanges {
         case 'name':
           if (typeof value === 'string' && value.trim().length > 0) payee.rename(value)
           break
+        case 'transfer_acct':
+          if (typeof value === 'string') {
+            payee.setTransferAccount(EntityId.fromString(value))
+          } else {
+            payee.setTransferAccount(undefined)
+          }
+          break
         case 'tombstone':
           if (value === 1) payee.delete()
           else payee.restore()
