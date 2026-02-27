@@ -25,6 +25,8 @@ import {
   initializeSyncStore,
   useFileStore,
   useAccountsStore,
+  useTransactionsStore,
+  useSyncStore,
 } from '../stores'
 import { LoadingScreen } from '../components/common'
 
@@ -33,6 +35,13 @@ interface DatabaseProviderProps {
 }
 
 const storage = new SecureTokenStorage()
+
+async function refreshAllStores(): Promise<void> {
+  await Promise.all([
+    useAccountsStore.getState().fetchAccounts(),
+    useTransactionsStore.getState().fetchTransactions(),
+  ])
+}
 
 export function DatabaseProvider({ children }: DatabaseProviderProps) {
   const [isReady, setIsReady] = useState(false)
@@ -44,6 +53,10 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
     if (!activeFileId) return
 
     async function initialize() {
+      // Phase 1: Critical setup — DB, repos, stores
+      // If this fails, show a blocking error screen
+      let fullSync: FullSync | null = null
+
       try {
         const db = createDatabase(`${activeFileId}.db`)
         await runMigrations(db)
@@ -56,7 +69,10 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
         const budgetRepo = new DrizzleBudgetRepository(db)
 
         const syncRepo = new SQLiteSyncRepository(db as any)
-        const clock = Clock.initialize()
+
+        // Bug 6 fix: load persisted clock so nodeId stays consistent across mounts
+        const savedClockState = await syncRepo.getClock()
+        const clock = savedClockState ? Clock.fromState(savedClockState) : Clock.initialize()
         const syncService = new CrdtSyncService(clock, syncRepo)
 
         const getAccounts = new GetAccounts(accountRepo, transactionRepo)
@@ -78,53 +94,80 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
         initializeAccountsStore(getAccounts, createAccount)
         initializeTransactionsStore(getTransactions, createTransaction)
 
-        // Setup FullSync
+        // Setup FullSync if server credentials are available
         const serverUrl = await storage.getServerUrl()
         const token = await storage.getToken()
-        
-        if (serverUrl && token && activeFileId && activeGroupId) {
+
+        if (serverUrl && token) {
           const client = new ActualServerClient(serverUrl)
           client.setToken(token)
 
-          const applyRemoteChanges = new ApplyRemoteChanges(
-            accountRepo,
-            transactionRepo,
-            categoryRepo,
-            categoryGroupRepo,
-            payeeRepo
-          )
+          // Bug 4 fix: resolve groupId from server if not cached locally
+          let resolvedGroupId = activeGroupId
+          if (!resolvedGroupId) {
+            try {
+              const info = await client.files.getFileInfo(activeFileId!)
+              if (info?.groupId) {
+                resolvedGroupId = info.groupId
+                await storage.saveActiveGroupId(info.groupId)
+                useFileStore.getState().setActiveGroupId(info.groupId)
+              }
+            } catch {
+              // Can't resolve groupId — sync will be skipped
+            }
+          }
 
-          const fullSync = new FullSync(
-            syncRepo,
-            client.sync,
-            new SyncEncoder(),
-            new SyncDecoder(),
-            applyRemoteChanges,
-            activeFileId,
-            activeGroupId
-          )
+          if (resolvedGroupId) {
+            const applyRemoteChanges = new ApplyRemoteChanges(
+              accountRepo,
+              transactionRepo,
+              categoryRepo,
+              categoryGroupRepo,
+              payeeRepo
+            )
 
-          initializeSyncStore(fullSync)
+            fullSync = new FullSync(
+              syncRepo,
+              client.sync,
+              new SyncEncoder(),
+              new SyncDecoder(),
+              applyRemoteChanges,
+              activeFileId!,
+              resolvedGroupId
+            )
 
-          // Trigger initial sync to fetch data
-          await fullSync.execute()
-          
-          // Refresh accounts list after sync
-          await useAccountsStore.getState().fetchAccounts()
+            initializeSyncStore(fullSync)
+          }
         }
 
         // Suppress unused variable warnings — repos available for future use
         void categoryGroupRepo
         void budgetRepo
 
+        // Mark app as ready so the user sees the tabs immediately
         setIsReady(true)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Database initialization failed')
+        return
+      }
+
+      // Phase 2: Sync (non-blocking) — failures show in Settings, never block the UI
+      if (fullSync) {
+        try {
+          await fullSync.execute()
+          // Bug 1 fix: refresh ALL stores after sync (not just accounts)
+          await refreshAllStores()
+          useSyncStore.setState({ lastSyncAt: new Date(), error: null })
+        } catch (syncErr) {
+          useSyncStore.getState().setError(
+            syncErr instanceof Error ? syncErr.message : 'Sync failed'
+          )
+        }
       }
     }
 
     initialize()
-  }, [activeFileId, activeGroupId])
+  }, [activeFileId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (error) {
     return <LoadingScreen message={`Error: ${error}`} />

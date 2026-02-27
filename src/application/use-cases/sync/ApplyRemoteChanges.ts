@@ -115,7 +115,7 @@ export class ApplyRemoteChanges {
       const value = ValueSerializer.deserialize(msg.value)
       switch (msg.column) {
         case 'name':
-          if (typeof value === 'string') account.rename(value)
+          if (typeof value === 'string' && value.trim().length > 0) account.rename(value)
           break
         case 'offbudget':
           account.setOffbudget(value === 1)
@@ -221,7 +221,7 @@ export class ApplyRemoteChanges {
       const value = ValueSerializer.deserialize(msg.value)
       switch (msg.column) {
         case 'name':
-          if (typeof value === 'string') category.rename(value)
+          if (typeof value === 'string' && value.trim().length > 0) category.rename(value)
           break
         case 'cat_group':
           if (typeof value === 'string') category.moveTo(EntityId.fromString(value))
@@ -262,7 +262,7 @@ export class ApplyRemoteChanges {
       const value = ValueSerializer.deserialize(msg.value)
       switch (msg.column) {
         case 'name':
-          if (typeof value === 'string') group.rename(value)
+          if (typeof value === 'string' && value.trim().length > 0) group.rename(value)
           break
         case 'hidden':
           if (value === 1) group.hide()
@@ -297,7 +297,7 @@ export class ApplyRemoteChanges {
       const value = ValueSerializer.deserialize(msg.value)
       switch (msg.column) {
         case 'name':
-          if (typeof value === 'string') payee.rename(value)
+          if (typeof value === 'string' && value.trim().length > 0) payee.rename(value)
           break
         case 'tombstone':
           if (value === 1) payee.delete()

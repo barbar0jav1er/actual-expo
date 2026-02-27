@@ -1,5 +1,4 @@
 import { EntityId, TransactionDate, BudgetMonth } from '@domain/value-objects'
-import { ValidationError } from '@domain/errors'
 import type { Transaction, Account, Category, Payee } from '@domain/entities'
 import type {
   AccountRepository,
@@ -45,10 +44,7 @@ export class GetTransactions {
         TransactionDate.fromString(input.endDate)
       )
     } else {
-      throw new ValidationError(
-        'filter',
-        'Must specify accountId, month, or date range'
-      )
+      transactions = await this.transactionRepo.findAll()
     }
 
     const [accounts, categories, payees] = await Promise.all([

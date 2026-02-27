@@ -9,6 +9,7 @@ interface SyncState {
 
 interface SyncActions {
   triggerSync: () => Promise<void>
+  setError: (message: string | null) => void
 }
 
 let fullSyncUseCase: FullSync
@@ -21,6 +22,8 @@ export const useSyncStore = create<SyncState & SyncActions>((set) => ({
   isSyncing: false,
   lastSyncAt: null,
   error: null,
+
+  setError: (message) => set({ error: message }),
 
   triggerSync: async () => {
     if (!fullSyncUseCase) {

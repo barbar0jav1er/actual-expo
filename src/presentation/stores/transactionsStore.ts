@@ -22,18 +22,11 @@ interface TransactionsStoreInternal extends TransactionsState, TransactionsActio
   _createTransaction: CreateTransaction | null
 }
 
-function currentMonthFilter(): GetTransactionsInput {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  return { month: `${year}-${month}` }
-}
-
 export const useTransactionsStore = create<TransactionsStoreInternal>((set, get) => ({
   transactions: [],
   isLoading: false,
   error: null,
-  filters: currentMonthFilter(),
+  filters: {},
   _getTransactions: null,
   _createTransaction: null,
 
@@ -70,7 +63,7 @@ export const useTransactionsStore = create<TransactionsStoreInternal>((set, get)
 
   setFilters: (filters) => set({ filters }),
 
-  clearFilters: () => set({ filters: currentMonthFilter() }),
+  clearFilters: () => set({ filters: {} }),
 }))
 
 export function initializeTransactionsStore(

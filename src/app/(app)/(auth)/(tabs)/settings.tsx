@@ -8,7 +8,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 export default function SettingsScreen() {
   const colors = useTheme();
   const { user, serverUrl, logout } = useAuthStore();
-  const { isSyncing, lastSyncAt, triggerSync } = useSyncStore();
+  const { isSyncing, lastSyncAt, error: syncError, triggerSync } = useSyncStore();
   const { activeFileId, clearActiveFile } = useFileStore();
 
   const lastSyncLabel = lastSyncAt
@@ -110,6 +110,19 @@ export default function SettingsScreen() {
               {lastSyncLabel}
             </Text>
           </View>
+          {syncError ? (
+            <View style={[styles.row, { borderBottomColor: colors.separator }]}>
+              <Text style={[styles.rowLabel, { color: colors.textSubdued }]}>
+                Error
+              </Text>
+              <Text
+                style={[styles.rowValue, { color: "#e53e3e" }]}
+                numberOfLines={2}
+              >
+                {syncError}
+              </Text>
+            </View>
+          ) : null}
           <View style={styles.rowAction}>
             <Button
               variant="secondary"

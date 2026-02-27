@@ -64,6 +64,16 @@ export class DrizzleTransactionRepository implements TransactionRepository {
     return rows.map(TransactionMapper.toDomain)
   }
 
+  async findAll(): Promise<Transaction[]> {
+    const rows = await (this.db as any)
+      .select()
+      .from(transactions)
+      .where(eq(transactions.tombstone, 0))
+      .orderBy(transactions.date)
+      .all()
+    return rows.map(TransactionMapper.toDomain)
+  }
+
   async findByCategory(categoryId: EntityId): Promise<Transaction[]> {
     const rows = await (this.db as any)
       .select()

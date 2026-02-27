@@ -16,6 +16,7 @@ interface FileActions {
   selectFile: (fileId: string, groupId: string | null) => Promise<void>
   checkActiveFile: () => Promise<void>
   clearActiveFile: () => Promise<void>
+  setActiveGroupId: (groupId: string) => void
 }
 
 const storage = new SecureTokenStorage()
@@ -83,4 +84,6 @@ export const useFileStore = create<FileState & FileActions>((set, get) => ({
     await storage.clearActiveFile()
     set({ activeFileId: null, activeGroupId: null })
   },
+
+  setActiveGroupId: (groupId) => set({ activeGroupId: groupId }),
 }))

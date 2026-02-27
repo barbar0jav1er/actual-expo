@@ -31,6 +31,7 @@ class InMemoryTransactionRepository implements TransactionRepository {
   }
   async findChildren(parentId: EntityId) { return this.transactions.filter(t => t.parentId?.equals(parentId)) }
   async findByCategory(categoryId: EntityId) { return this.transactions.filter(t => t.categoryId?.equals(categoryId)) }
+  async findAll() { return this.transactions.filter(t => !t.tombstone) }
   async findByPayee(payeeId: EntityId) { return this.transactions.filter(t => t.payeeId?.equals(payeeId)) }
   async save(tx: Transaction) {
     const idx = this.transactions.findIndex(t => t.id.equals(tx.id))
