@@ -1,250 +1,285 @@
-# Subplan 2: Persistencia (Infrastructure - SQLite)
+# Subplan 2: Persistencia (Infrastructure - SQLite + Drizzle ORM)
 
 ## Objetivo
 
-Implementar la capa de persistencia usando expo-sqlite, con repositorios que implementen los ports definidos en el Subplan 1.
+Implementar la capa de persistencia usando **Drizzle ORM** sobre **expo-sqlite**, con repositorios que implementen los ports definidos en el Subplan 1. Drizzle provee type-safety end-to-end, un query builder ergonómico y generación automática de migraciones via `drizzle-kit`.
 
 ## Dependencias
 
 - **Subplan 1:** Value Objects y Entidades del dominio
+- **Runtime:** `drizzle-orm`, `expo-sqlite`
+- **Dev:** `drizzle-kit`, `babel-plugin-inline-import`, `better-sqlite3` (para tests en Node)
+
+## Decisión de diseño
+
+Con Drizzle ORM el approach cambia respecto al plan original:
+
+| Aspecto | Plan original (raw SQLite) | Nuevo (Drizzle ORM) |
+|---------|---------------------------|---------------------|
+| Conexión DB | Clase `SQLiteDatabase` wrapper | `drizzle(openDatabaseSync(...))` |
+| Migraciones | Archivos TypeScript manuales | Generadas con `drizzle-kit generate` |
+| Tipos de fila | Interfaces `AccountRow` manuales | `typeof schema.accounts.$inferSelect` |
+| Queries | SQL strings con `?` params | Query builder type-safe |
+| Transacciones | `db.transaction(fn)` expo-sqlite | `db.transaction(fn)` drizzle |
+| Tests (Node) | No compatible con expo-sqlite | `better-sqlite3` + `drizzle-orm/better-sqlite3` |
 
 ## Archivos a Crear
 
 ```
-src/
-└── infrastructure/
-    └── persistence/
-        └── sqlite/
-            ├── SQLiteDatabase.ts
-            ├── SQLiteDatabase.test.ts
-            ├── migrations/
-            │   ├── index.ts
-            │   ├── 001_initial_schema.ts
-            │   ├── 002_sync_tables.ts
-            │   └── types.ts
-            ├── repositories/
-            │   ├── SQLiteAccountRepository.ts
-            │   ├── SQLiteAccountRepository.test.ts
-            │   ├── SQLiteTransactionRepository.ts
-            │   ├── SQLiteTransactionRepository.test.ts
-            │   ├── SQLiteCategoryRepository.ts
-            │   ├── SQLiteCategoryRepository.test.ts
-            │   ├── SQLiteCategoryGroupRepository.ts
-            │   ├── SQLiteCategoryGroupRepository.test.ts
-            │   ├── SQLitePayeeRepository.ts
-            │   ├── SQLitePayeeRepository.test.ts
-            │   └── index.ts
-            ├── mappers/
-            │   ├── AccountMapper.ts
-            │   ├── AccountMapper.test.ts
-            │   ├── TransactionMapper.ts
-            │   ├── CategoryMapper.ts
-            │   ├── PayeeMapper.ts
-            │   └── index.ts
-            └── index.ts
+actual-expo/
+├── drizzle.config.ts                          # Config de drizzle-kit
+├── drizzle/                                   # Generado por drizzle-kit generate
+│   └── *.sql + meta/
+└── src/
+    └── infrastructure/
+        └── persistence/
+            └── sqlite/
+                ├── schema.ts                  # Definiciones de tablas Drizzle
+                ├── database.ts                # Factory: crea instancia drizzle
+                ├── migrate.ts                 # Aplica migraciones en runtime (expo)
+                ├── mappers/
+                │   ├── AccountMapper.ts
+                │   ├── TransactionMapper.ts
+                │   ├── CategoryMapper.ts
+                │   ├── CategoryGroupMapper.ts
+                │   ├── PayeeMapper.ts
+                │   └── index.ts
+                ├── repositories/
+                │   ├── DrizzleAccountRepository.ts
+                │   ├── DrizzleAccountRepository.test.ts
+                │   ├── DrizzleTransactionRepository.ts
+                │   ├── DrizzleTransactionRepository.test.ts
+                │   ├── DrizzleCategoryRepository.ts
+                │   ├── DrizzleCategoryRepository.test.ts
+                │   ├── DrizzleCategoryGroupRepository.ts
+                │   ├── DrizzleCategoryGroupRepository.test.ts
+                │   ├── DrizzlePayeeRepository.ts
+                │   ├── DrizzlePayeeRepository.test.ts
+                │   └── index.ts
+                └── index.ts
 ```
 
 ---
 
-## SQLiteDatabase
+## Configuración inicial
 
-Wrapper para expo-sqlite con helpers.
+### Instalar dependencias
 
-```typescript
-import * as SQLite from 'expo-sqlite'
+```bash
+bun add drizzle-orm expo-sqlite
+bun add -D drizzle-kit babel-plugin-inline-import better-sqlite3 @types/better-sqlite3
+```
 
-class SQLiteDatabase {
-  private db: SQLite.SQLiteDatabase | null = null
+### metro.config.js
 
-  async open(name: string): Promise<void>
-  async close(): Promise<void>
+```js
+const { getDefaultConfig } = require('expo/metro-config')
 
-  async runMigrations(): Promise<void>
+const config = getDefaultConfig(__dirname)
+config.resolver.sourceExts.push('sql')  // para bundlear archivos .sql
 
-  async run(sql: string, params?: unknown[]): Promise<SQLite.SQLiteRunResult>
-  async get<T>(sql: string, params?: unknown[]): Promise<T | null>
-  async all<T>(sql: string, params?: unknown[]): Promise<T[]>
+module.exports = config
+```
 
-  async transaction<T>(fn: () => Promise<T>): Promise<T>
+### babel.config.js
 
-  isOpen(): boolean
+```js
+module.exports = function (api) {
+  api.cache(true)
+  return {
+    presets: ['babel-preset-expo'],
+    plugins: [['inline-import', { extensions: ['.sql'] }]], // bundlea .sql como string
+  }
+}
+```
+
+### drizzle.config.ts
+
+```ts
+import { defineConfig } from 'drizzle-kit'
+
+export default defineConfig({
+  dialect: 'sqlite',
+  driver: 'expo',               // driver especial para Expo (bundlea .sql)
+  schema: './src/infrastructure/persistence/sqlite/schema.ts',
+  out: './drizzle',
+})
+```
+
+---
+
+## Schema (Drizzle)
+
+`src/infrastructure/persistence/sqlite/schema.ts`
+
+```ts
+import { integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+
+export const accounts = sqliteTable('accounts', {
+  id:         text('id').primaryKey(),
+  name:       text('name').notNull(),
+  offbudget:  integer('offbudget').notNull().default(0),
+  closed:     integer('closed').notNull().default(0),
+  sortOrder:  real('sort_order').default(0),
+  tombstone:  integer('tombstone').notNull().default(0),
+})
+
+export const categoryGroups = sqliteTable('category_groups', {
+  id:        text('id').primaryKey(),
+  name:      text('name').notNull(),
+  isIncome:  integer('is_income').notNull().default(0),
+  sortOrder: real('sort_order').default(0),
+  hidden:    integer('hidden').notNull().default(0),
+  tombstone: integer('tombstone').notNull().default(0),
+})
+
+export const categories = sqliteTable('categories', {
+  id:        text('id').primaryKey(),
+  name:      text('name').notNull(),
+  catGroup:  text('cat_group').notNull().references(() => categoryGroups.id),
+  isIncome:  integer('is_income').notNull().default(0),
+  sortOrder: real('sort_order').default(0),
+  hidden:    integer('hidden').notNull().default(0),
+  tombstone: integer('tombstone').notNull().default(0),
+})
+
+export const payees = sqliteTable('payees', {
+  id:              text('id').primaryKey(),
+  name:            text('name').notNull(),
+  transferAcct:    text('transfer_acct').references(() => accounts.id),
+  tombstone:       integer('tombstone').notNull().default(0),
+})
+
+export const transactions = sqliteTable('transactions', {
+  id:          text('id').primaryKey(),
+  acct:        text('acct').notNull().references(() => accounts.id),
+  category:    text('category').references(() => categories.id),
+  amount:      integer('amount').notNull(),
+  description: text('description').references(() => payees.id), // payee_id
+  notes:       text('notes'),
+  date:        integer('date').notNull(),                        // YYYYMMDD
+  cleared:     integer('cleared').notNull().default(1),
+  reconciled:  integer('reconciled').notNull().default(0),
+  tombstone:   integer('tombstone').notNull().default(0),
+  isParent:    integer('is_parent').notNull().default(0),
+  isChild:     integer('is_child').notNull().default(0),
+  parentId:    text('parent_id'),
+  sortOrder:   real('sort_order').default(0),
+})
+
+// Tablas de sincronización CRDT
+export const messagesCrdt = sqliteTable('messages_crdt', {
+  id:        integer('id').primaryKey({ autoIncrement: true }),
+  timestamp: text('timestamp').notNull().unique(),
+  dataset:   text('dataset').notNull(),
+  row:       text('row').notNull(),
+  column:    text('column').notNull(),
+  value:     text('value').notNull(),  // blob almacenado como text base64
+})
+
+export const messagesClock = sqliteTable('messages_clock', {
+  id:    integer('id').primaryKey(),   // CHECK id = 1 via constraint manual
+  clock: text('clock').notNull(),
+})
+
+export const categoryMapping = sqliteTable('category_mapping', {
+  id:         text('id').primaryKey(),
+  transferId: text('transfer_id'),
+})
+
+export const payeeMapping = sqliteTable('payee_mapping', {
+  id:       text('id').primaryKey(),
+  targetId: text('target_id'),
+})
+```
+
+---
+
+## Database factory
+
+`src/infrastructure/persistence/sqlite/database.ts`
+
+```ts
+import { openDatabaseSync } from 'expo-sqlite'
+import { drizzle } from 'drizzle-orm/expo-sqlite'
+import * as schema from './schema'
+
+export type AppDatabase = ReturnType<typeof createDatabase>
+
+export function createDatabase(name = 'actual.db') {
+  const expo = openDatabaseSync(name, { enableChangeListener: true })
+  return drizzle(expo, { schema })
 }
 ```
 
 ---
 
-## Migraciones
+## Migraciones en runtime
 
-### Estructura
+`src/infrastructure/persistence/sqlite/migrate.ts`
 
-```typescript
-// migrations/types.ts
-interface Migration {
-  version: number
-  name: string
-  up: (db: SQLiteDatabase) => Promise<void>
-  down: (db: SQLiteDatabase) => Promise<void>
-}
+```ts
+import { migrate } from 'drizzle-orm/expo-sqlite/migrator'
+import migrations from '../../../../drizzle/migrations'  // auto-generado por drizzle-kit
+import type { AppDatabase } from './database'
 
-// migrations/index.ts
-const migrations: Migration[] = [
-  migration001,
-  migration002,
-  // ...
-]
-
-async function runMigrations(db: SQLiteDatabase): Promise<void> {
-  // Crear tabla de migraciones si no existe
-  // Ejecutar migraciones pendientes en orden
+export async function runMigrations(db: AppDatabase): Promise<void> {
+  await migrate(db, migrations)
 }
 ```
 
-### 001_initial_schema.ts
+> **Nota:** Ejecutar `bunx drizzle-kit generate` para generar los archivos SQL en `drizzle/`.
+> El archivo `drizzle/migrations.js` es importado directamente gracias al plugin `inline-import`.
 
-```sql
--- Accounts
-CREATE TABLE accounts (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  offbudget INTEGER DEFAULT 0,
-  closed INTEGER DEFAULT 0,
-  sort_order REAL DEFAULT 0,
-  tombstone INTEGER DEFAULT 0
-);
+---
 
--- Category Groups
-CREATE TABLE category_groups (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  is_income INTEGER DEFAULT 0,
-  sort_order REAL DEFAULT 0,
-  hidden INTEGER DEFAULT 0,
-  tombstone INTEGER DEFAULT 0
-);
+## Tipo compartido para repositorios
 
--- Categories
-CREATE TABLE categories (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  cat_group TEXT NOT NULL,
-  is_income INTEGER DEFAULT 0,
-  sort_order REAL DEFAULT 0,
-  hidden INTEGER DEFAULT 0,
-  tombstone INTEGER DEFAULT 0,
-  FOREIGN KEY (cat_group) REFERENCES category_groups(id)
-);
+Para soportar tanto expo-sqlite (runtime) como better-sqlite3 (tests), los repositorios aceptan el tipo genérico de Drizzle:
 
--- Payees
-CREATE TABLE payees (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  transfer_acct TEXT,
-  tombstone INTEGER DEFAULT 0,
-  FOREIGN KEY (transfer_acct) REFERENCES accounts(id)
-);
+```ts
+import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core'
 
--- Transactions
-CREATE TABLE transactions (
-  id TEXT PRIMARY KEY,
-  acct TEXT NOT NULL,
-  category TEXT,
-  amount INTEGER NOT NULL,
-  description TEXT,
-  notes TEXT,
-  date INTEGER NOT NULL,
-  cleared INTEGER DEFAULT 1,
-  reconciled INTEGER DEFAULT 0,
-  tombstone INTEGER DEFAULT 0,
-  is_parent INTEGER DEFAULT 0,
-  is_child INTEGER DEFAULT 0,
-  parent_id TEXT,
-  sort_order REAL DEFAULT 0,
-  FOREIGN KEY (acct) REFERENCES accounts(id),
-  FOREIGN KEY (category) REFERENCES categories(id),
-  FOREIGN KEY (description) REFERENCES payees(id),
-  FOREIGN KEY (parent_id) REFERENCES transactions(id)
-);
-
--- Indices
-CREATE INDEX idx_transactions_acct ON transactions(acct);
-CREATE INDEX idx_transactions_date ON transactions(date);
-CREATE INDEX idx_transactions_category ON transactions(category);
-CREATE INDEX idx_transactions_parent ON transactions(parent_id);
-CREATE INDEX idx_categories_group ON categories(cat_group);
-```
-
-### 002_sync_tables.ts
-
-```sql
--- CRDT Messages
-CREATE TABLE messages_crdt (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  timestamp TEXT NOT NULL UNIQUE,
-  dataset TEXT NOT NULL,
-  row TEXT NOT NULL,
-  column TEXT NOT NULL,
-  value BLOB NOT NULL
-);
-
-CREATE INDEX idx_messages_timestamp ON messages_crdt(timestamp);
-CREATE INDEX idx_messages_search ON messages_crdt(dataset, row, column);
-
--- Clock state
-CREATE TABLE messages_clock (
-  id INTEGER PRIMARY KEY CHECK (id = 1),
-  clock TEXT NOT NULL
-);
-
--- Category mapping (para IDs cambiados)
-CREATE TABLE category_mapping (
-  id TEXT PRIMARY KEY,
-  transfer_id TEXT
-);
-
--- Payee mapping
-CREATE TABLE payee_mapping (
-  id TEXT PRIMARY KEY,
-  target_id TEXT
-);
+// Tipo compatible con drizzle-orm/expo-sqlite y drizzle-orm/better-sqlite3
+export type DrizzleDB = BaseSQLiteDatabase<'async' | 'sync', any, typeof schema>
 ```
 
 ---
 
 ## Mappers
 
+Con Drizzle, los tipos de fila se infieren del schema, eliminando las interfaces `*Row` manuales.
+
 ### AccountMapper
 
-```typescript
-interface AccountRow {
-  id: string
-  name: string
-  offbudget: number  // 0 o 1
-  closed: number
-  sort_order: number | null
-  tombstone: number
-}
+```ts
+import type { accounts } from '../schema'
+import { Account } from '@domain/entities/Account'
+import { EntityId } from '@domain/value-objects/EntityId'
 
-class AccountMapper {
+type AccountRow = typeof accounts.$inferSelect
+
+export class AccountMapper {
   static toDomain(row: AccountRow): Account {
     return Account.reconstitute({
-      id: EntityId.fromString(row.id),
-      name: row.name,
+      id:        EntityId.fromString(row.id),
+      name:      row.name,
       offbudget: row.offbudget === 1,
-      closed: row.closed === 1,
-      sortOrder: row.sort_order ?? 0,
-      tombstone: row.tombstone === 1
+      closed:    row.closed === 1,
+      sortOrder: row.sortOrder ?? 0,
+      tombstone: row.tombstone === 1,
     })
   }
 
-  static toPersistence(account: Account): AccountRow {
+  static toPersistence(account: Account): typeof accounts.$inferInsert {
     const props = account.toObject()
     return {
-      id: props.id.toString(),
-      name: props.name,
+      id:        props.id.toString(),
+      name:      props.name,
       offbudget: props.offbudget ? 1 : 0,
-      closed: props.closed ? 1 : 0,
-      sort_order: props.sortOrder,
-      tombstone: props.tombstone ? 1 : 0
+      closed:    props.closed ? 1 : 0,
+      sortOrder: props.sortOrder,
+      tombstone: props.tombstone ? 1 : 0,
     }
   }
 }
@@ -252,250 +287,272 @@ class AccountMapper {
 
 ### TransactionMapper
 
-```typescript
-interface TransactionRow {
-  id: string
-  acct: string
-  category: string | null
-  amount: number
-  description: string | null  // payee_id
-  notes: string | null
-  date: number  // YYYYMMDD
-  cleared: number
-  reconciled: number
-  tombstone: number
-  is_parent: number
-  is_child: number
-  parent_id: string | null
-  sort_order: number | null
-}
+```ts
+import type { transactions } from '../schema'
+import { Transaction } from '@domain/entities/Transaction'
+import { EntityId } from '@domain/value-objects/EntityId'
+import { Money } from '@domain/value-objects/Money'
+import { TransactionDate } from '@domain/value-objects/TransactionDate'
 
-class TransactionMapper {
+type TransactionRow = typeof transactions.$inferSelect
+
+export class TransactionMapper {
   static toDomain(row: TransactionRow): Transaction {
     return Transaction.reconstitute({
-      id: EntityId.fromString(row.id),
-      accountId: EntityId.fromString(row.acct),
-      categoryId: row.category ? EntityId.fromString(row.category) : undefined,
-      payeeId: row.description ? EntityId.fromString(row.description) : undefined,
-      amount: Money.fromCents(row.amount),
-      date: TransactionDate.fromNumber(row.date),
-      notes: row.notes ?? undefined,
-      cleared: row.cleared === 1,
-      reconciled: row.reconciled === 1,
-      tombstone: row.tombstone === 1,
-      isParent: row.is_parent === 1,
-      isChild: row.is_child === 1,
-      parentId: row.parent_id ? EntityId.fromString(row.parent_id) : undefined,
-      sortOrder: row.sort_order ?? 0
+      id:          EntityId.fromString(row.id),
+      accountId:   EntityId.fromString(row.acct),
+      categoryId:  row.category   ? EntityId.fromString(row.category)   : undefined,
+      payeeId:     row.description ? EntityId.fromString(row.description) : undefined,
+      amount:      Money.fromCents(row.amount),
+      date:        TransactionDate.fromNumber(row.date),
+      notes:       row.notes ?? undefined,
+      cleared:     row.cleared === 1,
+      reconciled:  row.reconciled === 1,
+      tombstone:   row.tombstone === 1,
+      isParent:    row.isParent === 1,
+      isChild:     row.isChild === 1,
+      parentId:    row.parentId ? EntityId.fromString(row.parentId) : undefined,
+      sortOrder:   row.sortOrder ?? 0,
     })
   }
 
-  static toPersistence(tx: Transaction): TransactionRow {
+  static toPersistence(tx: Transaction): typeof transactions.$inferInsert {
     const props = tx.toObject()
     return {
-      id: props.id.toString(),
-      acct: props.accountId.toString(),
-      category: props.categoryId?.toString() ?? null,
-      amount: props.amount.toCents(),
+      id:          props.id.toString(),
+      acct:        props.accountId.toString(),
+      category:    props.categoryId?.toString() ?? null,
+      amount:      props.amount.toCents(),
       description: props.payeeId?.toString() ?? null,
-      notes: props.notes ?? null,
-      date: props.date.toNumber(),
-      cleared: props.cleared ? 1 : 0,
-      reconciled: props.reconciled ? 1 : 0,
-      tombstone: props.tombstone ? 1 : 0,
-      is_parent: props.isParent ? 1 : 0,
-      is_child: props.isChild ? 1 : 0,
-      parent_id: props.parentId?.toString() ?? null,
-      sort_order: props.sortOrder
+      notes:       props.notes ?? null,
+      date:        props.date.toNumber(),
+      cleared:     props.cleared ? 1 : 0,
+      reconciled:  props.reconciled ? 1 : 0,
+      tombstone:   props.tombstone ? 1 : 0,
+      isParent:    props.isParent ? 1 : 0,
+      isChild:     props.isChild ? 1 : 0,
+      parentId:    props.parentId?.toString() ?? null,
+      sortOrder:   props.sortOrder,
     }
   }
 }
 ```
 
+> Los mappers de `Category`, `CategoryGroup` y `Payee` siguen el mismo patrón.
+
 ---
 
-## Repositories
+## Repositorios
 
-### SQLiteAccountRepository
+### DrizzleAccountRepository
 
-```typescript
-class SQLiteAccountRepository implements AccountRepository {
-  constructor(private db: SQLiteDatabase) {}
+```ts
+import { eq, and } from 'drizzle-orm'
+import { accounts } from '../schema'
+import { AccountMapper } from '../mappers/AccountMapper'
+import type { AccountRepository } from '@domain/repositories/AccountRepository'
+import type { Account } from '@domain/entities/Account'
+import type { EntityId } from '@domain/value-objects/EntityId'
+import type { DrizzleDB } from '../types'
+
+export class DrizzleAccountRepository implements AccountRepository {
+  constructor(private db: DrizzleDB) {}
 
   async findById(id: EntityId): Promise<Account | null> {
-    const row = await this.db.get<AccountRow>(
-      'SELECT * FROM accounts WHERE id = ?',
-      [id.toString()]
-    )
+    const row = await this.db
+      .select()
+      .from(accounts)
+      .where(eq(accounts.id, id.toString()))
+      .get()
     return row ? AccountMapper.toDomain(row) : null
   }
 
   async findAll(): Promise<Account[]> {
-    const rows = await this.db.all<AccountRow>(
-      'SELECT * FROM accounts WHERE tombstone = 0 ORDER BY sort_order'
-    )
+    const rows = await this.db
+      .select()
+      .from(accounts)
+      .where(eq(accounts.tombstone, 0))
+      .orderBy(accounts.sortOrder)
+      .all()
     return rows.map(AccountMapper.toDomain)
   }
 
   async findActive(): Promise<Account[]> {
-    const rows = await this.db.all<AccountRow>(
-      'SELECT * FROM accounts WHERE tombstone = 0 AND closed = 0 ORDER BY sort_order'
-    )
+    const rows = await this.db
+      .select()
+      .from(accounts)
+      .where(and(eq(accounts.tombstone, 0), eq(accounts.closed, 0)))
+      .orderBy(accounts.sortOrder)
+      .all()
     return rows.map(AccountMapper.toDomain)
   }
 
   async save(account: Account): Promise<void> {
     const row = AccountMapper.toPersistence(account)
-    await this.db.run(
-      `INSERT INTO accounts (id, name, offbudget, closed, sort_order, tombstone)
-       VALUES (?, ?, ?, ?, ?, ?)
-       ON CONFLICT(id) DO UPDATE SET
-         name = excluded.name,
-         offbudget = excluded.offbudget,
-         closed = excluded.closed,
-         sort_order = excluded.sort_order,
-         tombstone = excluded.tombstone`,
-      [row.id, row.name, row.offbudget, row.closed, row.sort_order, row.tombstone]
-    )
+    await this.db
+      .insert(accounts)
+      .values(row)
+      .onConflictDoUpdate({
+        target: accounts.id,
+        set: {
+          name:      row.name,
+          offbudget: row.offbudget,
+          closed:    row.closed,
+          sortOrder: row.sortOrder,
+          tombstone: row.tombstone,
+        },
+      })
   }
 
   async delete(id: EntityId): Promise<void> {
-    await this.db.run(
-      'UPDATE accounts SET tombstone = 1 WHERE id = ?',
-      [id.toString()]
-    )
+    await this.db
+      .update(accounts)
+      .set({ tombstone: 1 })
+      .where(eq(accounts.id, id.toString()))
   }
 }
 ```
 
-### SQLiteTransactionRepository
+### DrizzleTransactionRepository
 
-```typescript
-class SQLiteTransactionRepository implements TransactionRepository {
-  constructor(private db: SQLiteDatabase) {}
+```ts
+import { eq, and, gte, lte } from 'drizzle-orm'
+import { transactions } from '../schema'
+import { TransactionMapper } from '../mappers/TransactionMapper'
+import type { TransactionRepository } from '@domain/repositories/TransactionRepository'
+import type { Transaction } from '@domain/entities/Transaction'
+import type { EntityId } from '@domain/value-objects/EntityId'
+import type { TransactionDate } from '@domain/value-objects/TransactionDate'
+import type { BudgetMonth } from '@domain/value-objects/BudgetMonth'
+import type { DrizzleDB } from '../types'
+
+export class DrizzleTransactionRepository implements TransactionRepository {
+  constructor(private db: DrizzleDB) {}
 
   async findById(id: EntityId): Promise<Transaction | null> {
-    const row = await this.db.get<TransactionRow>(
-      'SELECT * FROM transactions WHERE id = ?',
-      [id.toString()]
-    )
+    const row = await this.db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.id, id.toString()))
+      .get()
     return row ? TransactionMapper.toDomain(row) : null
   }
 
   async findByAccount(accountId: EntityId): Promise<Transaction[]> {
-    const rows = await this.db.all<TransactionRow>(
-      `SELECT * FROM transactions
-       WHERE acct = ? AND tombstone = 0
-       ORDER BY date DESC, sort_order`,
-      [accountId.toString()]
-    )
+    const rows = await this.db
+      .select()
+      .from(transactions)
+      .where(and(eq(transactions.acct, accountId.toString()), eq(transactions.tombstone, 0)))
+      .orderBy(transactions.date, transactions.sortOrder)
+      .all()
     return rows.map(TransactionMapper.toDomain)
   }
 
-  async findByDateRange(
-    start: TransactionDate,
-    end: TransactionDate
-  ): Promise<Transaction[]> {
-    const rows = await this.db.all<TransactionRow>(
-      `SELECT * FROM transactions
-       WHERE date >= ? AND date <= ? AND tombstone = 0
-       ORDER BY date DESC`,
-      [start.toNumber(), end.toNumber()]
-    )
+  async findByDateRange(start: TransactionDate, end: TransactionDate): Promise<Transaction[]> {
+    const rows = await this.db
+      .select()
+      .from(transactions)
+      .where(
+        and(
+          gte(transactions.date, start.toNumber()),
+          lte(transactions.date, end.toNumber()),
+          eq(transactions.tombstone, 0),
+        )
+      )
+      .orderBy(transactions.date)
+      .all()
     return rows.map(TransactionMapper.toDomain)
   }
 
   async findByMonth(month: BudgetMonth): Promise<Transaction[]> {
-    const startDate = month.toNumber() * 100 + 1  // YYYYMM01
-    const endDate = month.toNumber() * 100 + 31   // YYYYMM31
-
-    const rows = await this.db.all<TransactionRow>(
-      `SELECT * FROM transactions
-       WHERE date >= ? AND date <= ? AND tombstone = 0
-       ORDER BY date DESC`,
-      [startDate, endDate]
+    const startDate = month.toNumber() * 100 + 1   // YYYYMM01
+    const endDate   = month.toNumber() * 100 + 31  // YYYYMM31
+    return this.findByDateRange(
+      { toNumber: () => startDate } as any,
+      { toNumber: () => endDate   } as any,
     )
-    return rows.map(TransactionMapper.toDomain)
   }
 
   async findChildren(parentId: EntityId): Promise<Transaction[]> {
-    const rows = await this.db.all<TransactionRow>(
-      'SELECT * FROM transactions WHERE parent_id = ? AND tombstone = 0',
-      [parentId.toString()]
-    )
+    const rows = await this.db
+      .select()
+      .from(transactions)
+      .where(and(eq(transactions.parentId, parentId.toString()), eq(transactions.tombstone, 0)))
+      .all()
     return rows.map(TransactionMapper.toDomain)
   }
 
-  async save(transaction: Transaction): Promise<void> {
-    const row = TransactionMapper.toPersistence(transaction)
-    await this.db.run(
-      `INSERT INTO transactions
-       (id, acct, category, amount, description, notes, date, cleared,
-        reconciled, tombstone, is_parent, is_child, parent_id, sort_order)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT(id) DO UPDATE SET
-         acct = excluded.acct,
-         category = excluded.category,
-         amount = excluded.amount,
-         description = excluded.description,
-         notes = excluded.notes,
-         date = excluded.date,
-         cleared = excluded.cleared,
-         reconciled = excluded.reconciled,
-         tombstone = excluded.tombstone,
-         is_parent = excluded.is_parent,
-         is_child = excluded.is_child,
-         parent_id = excluded.parent_id,
-         sort_order = excluded.sort_order`,
-      [row.id, row.acct, row.category, row.amount, row.description,
-       row.notes, row.date, row.cleared, row.reconciled, row.tombstone,
-       row.is_parent, row.is_child, row.parent_id, row.sort_order]
-    )
+  async save(tx: Transaction): Promise<void> {
+    const row = TransactionMapper.toPersistence(tx)
+    await this.db
+      .insert(transactions)
+      .values(row)
+      .onConflictDoUpdate({ target: transactions.id, set: row })
   }
 
-  async saveMany(transactions: Transaction[]): Promise<void> {
-    await this.db.transaction(async () => {
-      for (const tx of transactions) {
-        await this.save(tx)
+  async saveMany(txs: Transaction[]): Promise<void> {
+    await this.db.transaction(async (trx) => {
+      for (const tx of txs) {
+        const row = TransactionMapper.toPersistence(tx)
+        await trx
+          .insert(transactions)
+          .values(row)
+          .onConflictDoUpdate({ target: transactions.id, set: row })
       }
     })
   }
 
   async delete(id: EntityId): Promise<void> {
-    await this.db.run(
-      'UPDATE transactions SET tombstone = 1 WHERE id = ?',
-      [id.toString()]
-    )
+    await this.db
+      .update(transactions)
+      .set({ tombstone: 1 })
+      .where(eq(transactions.id, id.toString()))
   }
 }
 ```
+
+> Los repositorios de `Category`, `CategoryGroup` y `Payee` siguen el mismo patrón.
 
 ---
 
 ## Tests
 
-### Test de Integracion
+Los tests usan `better-sqlite3` + `drizzle-orm/better-sqlite3` para correr SQLite en Node sin necesidad de un emulador Expo. El schema es el mismo, lo que garantiza paridad.
 
-```typescript
-// SQLiteAccountRepository.test.ts
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+### Setup compartido
 
-describe('SQLiteAccountRepository', () => {
-  let db: SQLiteDatabase
-  let repo: SQLiteAccountRepository
+```ts
+// src/infrastructure/persistence/sqlite/test-helpers/createTestDb.ts
+import Database from 'better-sqlite3'
+import { drizzle } from 'drizzle-orm/better-sqlite3'
+import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
+import * as schema from '../schema'
 
-  beforeEach(async () => {
-    db = new SQLiteDatabase()
-    await db.open(':memory:')
-    await db.runMigrations()
-    repo = new SQLiteAccountRepository(db)
+export function createTestDb() {
+  const sqlite = new Database(':memory:')
+  const db = drizzle(sqlite, { schema })
+  migrate(db, { migrationsFolder: './drizzle' })
+  return db
+}
+```
+
+### DrizzleAccountRepository.test.ts
+
+```ts
+import { describe, it, expect, beforeEach } from 'vitest'
+import { createTestDb } from '../test-helpers/createTestDb'
+import { DrizzleAccountRepository } from './DrizzleAccountRepository'
+import { Account } from '@domain/entities/Account'
+
+describe('DrizzleAccountRepository', () => {
+  let repo: DrizzleAccountRepository
+
+  beforeEach(() => {
+    const db = createTestDb()
+    repo = new DrizzleAccountRepository(db)
   })
 
-  afterEach(async () => {
-    await db.close()
-  })
-
-  it('should save and retrieve an account', async () => {
+  it('saves and retrieves an account', async () => {
     const account = Account.create({ name: 'Checking' })
 
     await repo.save(account)
@@ -505,21 +562,20 @@ describe('SQLiteAccountRepository', () => {
     expect(found!.name).toBe('Checking')
   })
 
-  it('should find all active accounts', async () => {
-    const account1 = Account.create({ name: 'Checking' })
-    const account2 = Account.create({ name: 'Savings' })
-    account2.close()
+  it('returns only active accounts', async () => {
+    const active = Account.create({ name: 'Checking' })
+    const closed = Account.create({ name: 'Savings' })
+    closed.close()
 
-    await repo.save(account1)
-    await repo.save(account2)
+    await repo.save(active)
+    await repo.save(closed)
 
-    const active = await repo.findActive()
-
-    expect(active).toHaveLength(1)
-    expect(active[0].name).toBe('Checking')
+    const result = await repo.findActive()
+    expect(result).toHaveLength(1)
+    expect(result[0].name).toBe('Checking')
   })
 
-  it('should update an existing account', async () => {
+  it('updates an existing account (upsert)', async () => {
     const account = Account.create({ name: 'Checking' })
     await repo.save(account)
 
@@ -530,7 +586,7 @@ describe('SQLiteAccountRepository', () => {
     expect(found!.name).toBe('Main Checking')
   })
 
-  it('should soft delete an account', async () => {
+  it('soft-deletes an account (tombstone)', async () => {
     const account = Account.create({ name: 'Checking' })
     await repo.save(account)
 
@@ -544,35 +600,29 @@ describe('SQLiteAccountRepository', () => {
 
 ---
 
-## Verificacion
+## Verificación
 
 ### Comandos
 
 ```bash
-# Tests de integracion
-npm run test:integration
+# Generar migraciones (ejecutar tras cambios en schema.ts)
+bunx drizzle-kit generate
 
-# Tests con SQLite en memoria
-npm run test -- --grep "SQLite"
+# Correr tests de integración
+bun run test
+
+# Type check
+bun run typecheck
 ```
 
-### Criterios de Exito
+### Criterios de Éxito
 
-- [ ] Migraciones se ejecutan correctamente
-- [ ] Todos los repositorios implementan sus interfaces
-- [ ] Mappers convierten correctamente en ambas direcciones
-- [ ] Tests de integracion pasan con SQLite en memoria
-- [ ] Transacciones funcionan correctamente
-- [ ] Soft deletes funcionan (tombstone)
-
----
-
-## Tiempo Estimado
-
-- SQLiteDatabase wrapper: 2-3 horas
-- Migraciones: 2-3 horas
-- Mappers: 2-3 horas
-- Repositories: 4-6 horas
-- Tests de integracion: 3-4 horas
-
-**Total: 13-19 horas**
+- [ ] Schema Drizzle cubre todas las tablas del dominio (accounts, categories, payees, transactions, CRDT)
+- [ ] `drizzle-kit generate` genera migraciones sin errores
+- [ ] Migraciones se aplican correctamente en runtime (expo) y en tests (better-sqlite3)
+- [ ] Todos los repositorios implementan sus interfaces del dominio
+- [ ] Mappers convierten correctamente en ambas direcciones usando tipos inferidos del schema
+- [ ] Tests de integración pasan con SQLite en memoria (better-sqlite3)
+- [ ] Transacciones (`saveMany`) son atómicas
+- [ ] Soft deletes funcionan (tombstone = 1, excluidos en findAll/findActive)
+- [ ] Sin errores de TypeScript (`bun run typecheck`)
