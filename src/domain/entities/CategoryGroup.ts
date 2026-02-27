@@ -68,6 +68,10 @@ export class CategoryGroup {
     this.props.name = trimmed
   }
 
+  setIsIncome(isIncome: boolean): void {
+    this.props.isIncome = isIncome
+  }
+
   hide(): void {
     this.props.hidden = true
   }

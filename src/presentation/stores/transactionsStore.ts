@@ -52,6 +52,12 @@ export const useTransactionsStore = create<TransactionsStoreInternal>((set, get)
     try {
       await _createTransaction.execute(data)
       await fetchTransactions()
+      // Also refresh accounts to update balances
+      const { useAccountsStore } = await import('./accountsStore')
+      await useAccountsStore.getState().fetchAccounts()
+      // Trigger sync
+      const { useSyncStore } = await import('./syncStore')
+      void useSyncStore.getState().triggerSync()
     } catch (err) {
       set({
         error: err instanceof Error ? err.message : 'Failed to create transaction',

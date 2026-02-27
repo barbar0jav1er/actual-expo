@@ -82,6 +82,10 @@ export class Category {
     this.props.groupId = groupId
   }
 
+  setIsIncome(isIncome: boolean): void {
+    this.props.isIncome = isIncome
+  }
+
   hide(): void {
     this.props.hidden = true
   }

@@ -1,6 +1,6 @@
 import { useTheme } from "@/hooks/use-theme";
 import { AccountForm, AccountList } from "@/presentation/components/accounts";
-import { MoneyText } from "@/presentation/components/common";
+import { MoneyText, LoadingScreen } from "@/presentation/components/common";
 import { useAccountsStore } from "@/presentation/stores";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
@@ -9,7 +9,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function AccountsScreen() {
   const colors = useTheme();
-  const { accounts, isLoading, fetchAccounts, createAccount, getTotalBalance } =
+  const { accounts, isLoading, error, fetchAccounts, createAccount, getTotalBalance } =
     useAccountsStore();
   const [showForm, setShowForm] = useState(false);
 
@@ -19,12 +19,20 @@ export default function AccountsScreen() {
 
   const totalBalance = getTotalBalance();
 
+  if (isLoading && accounts.length === 0) {
+    return <LoadingScreen message="Loading accounts..." />;
+  }
+
   return (
     <SafeAreaView
       style={[styles.safe, { backgroundColor: colors.pageBackground }]}
       edges={["top"]}
     >
-      {/* Summary bar */}
+      {error && (
+        <View style={{ backgroundColor: colors.numberNegative, padding: 8 }}>
+          <Text style={{ color: '#fff', fontSize: 12, textAlign: 'center' }}>{error}</Text>
+        </View>
+      )}
       <View style={[styles.summaryBar, { backgroundColor: colors.primary }]}>
         <Text style={styles.summaryLabel}>Total Budget Balance</Text>
         <MoneyText
@@ -57,7 +65,7 @@ export default function AccountsScreen() {
       <AccountForm
         visible={showForm}
         onClose={() => setShowForm(false)}
-        onSubmit={({ name, offbudget }) => createAccount(name, offbudget)}
+        onSubmit={({ name, offbudget, balance }) => createAccount(name, offbudget, balance)}
       />
     </SafeAreaView>
   );

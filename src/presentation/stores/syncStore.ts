@@ -34,6 +34,16 @@ export const useSyncStore = create<SyncState & SyncActions>((set) => ({
     set({ isSyncing: true, error: null })
     try {
       await fullSyncUseCase.execute()
+      
+      // Refresh all data stores after sync
+      const { useAccountsStore } = await import('./accountsStore')
+      const { useTransactionsStore } = await import('./transactionsStore')
+      
+      await Promise.all([
+        useAccountsStore.getState().fetchAccounts(),
+        useTransactionsStore.getState().fetchTransactions(),
+      ])
+
       set({ isSyncing: false, lastSyncAt: new Date() })
     } catch (err) {
       set({

@@ -161,8 +161,6 @@ export class ApplyRemoteChanges {
       switch (msg.column) {
         case 'acct':
           if (typeof value === 'string') {
-            // Reconstruct with new accountId requires reconstituting the entity
-            // We use the internal props approach via the reconstitute method
             tx = Transaction.reconstitute({ ...tx.toObject(), accountId: EntityId.fromString(value) })
           }
           break
@@ -226,6 +224,9 @@ export class ApplyRemoteChanges {
         case 'cat_group':
           if (typeof value === 'string') category.moveTo(EntityId.fromString(value))
           break
+        case 'is_income':
+          category.setIsIncome(value === 1)
+          break
         case 'hidden':
           if (value === 1) category.hide()
           else category.show()
@@ -263,6 +264,9 @@ export class ApplyRemoteChanges {
       switch (msg.column) {
         case 'name':
           if (typeof value === 'string' && value.trim().length > 0) group.rename(value)
+          break
+        case 'is_income':
+          group.setIsIncome(value === 1)
           break
         case 'hidden':
           if (value === 1) group.hide()

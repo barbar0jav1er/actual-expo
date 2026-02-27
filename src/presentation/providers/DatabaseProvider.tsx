@@ -76,7 +76,14 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
         const syncService = new CrdtSyncService(clock, syncRepo)
 
         const getAccounts = new GetAccounts(accountRepo, transactionRepo)
-        const createAccount = new CreateAccount(accountRepo, payeeRepo, syncService)
+        const createAccount = new CreateAccount(
+          accountRepo,
+          payeeRepo,
+          categoryRepo,
+          categoryGroupRepo,
+          transactionRepo,
+          syncService
+        )
         const getTransactions = new GetTransactions(
           transactionRepo,
           accountRepo,

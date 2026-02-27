@@ -16,18 +16,20 @@ import { useTheme } from '@/hooks/use-theme'
 interface AccountFormProps {
   visible: boolean
   onClose: () => void
-  onSubmit: (data: { name: string; offbudget: boolean }) => Promise<void>
+  onSubmit: (data: { name: string; offbudget: boolean; balance: number }) => Promise<void>
 }
 
 export function AccountForm({ visible, onClose, onSubmit }: AccountFormProps) {
   const colors = useTheme()
   const [name, setName] = useState('')
+  const [balance, setBalance] = useState('')
   const [offbudget, setOffbudget] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   function reset() {
     setName('')
+    setBalance('')
     setOffbudget(false)
     setError(null)
   }
@@ -42,10 +44,15 @@ export function AccountForm({ visible, onClose, onSubmit }: AccountFormProps) {
       setError('Account name is required')
       return
     }
+
+    // Convert balance string to cents
+    const parsedBalance = parseFloat(balance.replace(',', '.')) || 0
+    const cents = Math.round(parsedBalance * 100)
+
     setLoading(true)
     setError(null)
     try {
-      await onSubmit({ name: name.trim(), offbudget })
+      await onSubmit({ name: name.trim(), offbudget, balance: cents })
       reset()
       onClose()
     } catch (err) {
@@ -85,12 +92,30 @@ export function AccountForm({ visible, onClose, onSubmit }: AccountFormProps) {
             placeholder="e.g. Checking Account"
             placeholderTextColor={colors.textSubdued}
             autoFocus
+            returnKeyType="next"
+          />
+
+          <Text style={[styles.label, { color: colors.textSubdued, marginTop: 16 }]}>Initial Balance</Text>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.cardBackground,
+                color: colors.textPrimary,
+                borderColor: colors.separator,
+              },
+            ]}
+            value={balance}
+            onChangeText={setBalance}
+            placeholder="0.00"
+            placeholderTextColor={colors.textSubdued}
+            keyboardType="decimal-pad"
             returnKeyType="done"
             onSubmitEditing={handleSubmit}
           />
           {error && <Text style={[styles.error, { color: colors.numberNegative }]}>{error}</Text>}
 
-          <View style={[styles.row, { borderTopColor: colors.separator, borderBottomColor: colors.separator }]}>
+          <View style={[styles.row, { borderTopColor: colors.separator, borderBottomColor: colors.separator, marginTop: 24 }]}>
             <View>
               <Text style={[styles.rowLabel, { color: colors.textPrimary }]}>Off Budget</Text>
               <Text style={[styles.rowSubtitle, { color: colors.textSubdued }]}>
