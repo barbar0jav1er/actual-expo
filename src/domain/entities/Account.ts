@@ -61,7 +61,11 @@ export class Account {
   }
 
   rename(name: string): void {
-    this.props.name = (name ?? '').trim()
+    const trimmed = (name ?? '').trim()
+    if (!trimmed) {
+      throw new ValidationError('name', 'Account name cannot be empty')
+    }
+    this.props.name = trimmed
   }
 
   close(): void {

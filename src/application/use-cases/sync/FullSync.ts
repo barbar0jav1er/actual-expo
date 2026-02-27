@@ -66,8 +66,6 @@ export class FullSync {
       const { messages: remoteMessages, merkle: remoteMerkle } =
         this.syncDecoder.decode(responseBuffer)
       
-      messagesReceivedCount += remoteMessages.length
-
       // 6. Process only NEW remote messages
       const newMessages: typeof remoteMessages = []
       for (const msg of remoteMessages) {
@@ -76,6 +74,8 @@ export class FullSync {
           newMessages.push(msg)
         }
       }
+
+      messagesReceivedCount += newMessages.length
 
       if (newMessages.length > 0) {
         // Save them first so they are in the DB
@@ -107,10 +107,9 @@ export class FullSync {
       if (diff === null) {
         converged = true
       } else {
-        if (remoteMessages.length === 0) {
-          // No more messages but still divergent? Something is wrong with the implementation
-          // or we have local messages the server doesn't have yet.
-          console.warn('Merkle divergence detected but no messages returned at timestamp:', diff)
+        if (remoteMessages.length === 0 || newMessages.length === 0) {
+          // No new messages to process but still divergent — local data may need to sync
+          console.warn('Merkle divergence detected but no new messages returned at timestamp:', diff)
           break
         }
       }
