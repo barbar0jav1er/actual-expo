@@ -1,5 +1,24 @@
 # Subplan 3: Sincronizacion CRDT (Infrastructure - Sync)
 
+## Estado: ✅ IMPLEMENTADO
+
+### Archivos creados
+- `src/infrastructure/sync/crdt/Timestamp.ts` + `Timestamp.test.ts` — HULC con send/recv, parse, compareTo
+- `src/infrastructure/sync/crdt/MerkleTree.ts` + `MerkleTree.test.ts` — radix-3 trie con insert, diff, prune, serialize
+- `src/infrastructure/sync/crdt/Clock.ts` + `Clock.test.ts` — estado del reloj CRDT (send, recv, updateMerkle, pruneMerkle, serialize)
+- `src/infrastructure/sync/crdt/index.ts`
+- `src/infrastructure/sync/protobuf/sync.proto` — definicion protobuf (Message, MessageEnvelope, SyncRequest, SyncResponse)
+- `src/infrastructure/sync/protobuf/generated/sync.ts` — tipos generados
+- `src/infrastructure/sync/protobuf/SyncEncoder.ts` + `SyncEncoder.test.ts`
+- `src/infrastructure/sync/protobuf/SyncDecoder.ts` + `SyncDecoder.test.ts`
+- `src/infrastructure/sync/protobuf/index.ts`
+- `src/infrastructure/sync/repositories/SQLiteSyncRepository.ts` + `SQLiteSyncRepository.test.ts`
+- `src/infrastructure/sync/repositories/index.ts`
+- `src/infrastructure/sync/ValueSerializer.ts` + `ValueSerializer.test.ts` — formato "TIPO:VALOR" (0:, N:n, S:s)
+- `src/infrastructure/sync/index.ts`
+
+---
+
 ## Objetivo
 
 Implementar el motor de sincronizacion CRDT compatible con el servidor Actual Budget existente.
@@ -834,13 +853,13 @@ describe('MerkleTree', () => {
 
 ### Criterios de Exito
 
-- [ ] Timestamp genera y parsea correctamente el formato HULC
-- [ ] Timestamp.send() incrementa el contador correctamente
-- [ ] Timestamp.recv() sincroniza relojes correctamente
-- [ ] MerkleTree detecta diferencias entre tries
-- [ ] MerkleTree.prune() reduce el tamano del arbol
-- [ ] Protocol Buffers codifica/decodifica correctamente
-- [ ] SyncRepository persiste mensajes y clock
+- [x] Timestamp genera y parsea correctamente el formato HULC
+- [x] Timestamp.send() incrementa el contador correctamente
+- [x] Timestamp.recv() sincroniza relojes correctamente
+- [x] MerkleTree detecta diferencias entre tries
+- [x] MerkleTree.prune() reduce el tamano del arbol
+- [x] Protocol Buffers codifica/decodifica correctamente
+- [x] SyncRepository persiste mensajes y clock
 
 ### Test de Compatibilidad
 

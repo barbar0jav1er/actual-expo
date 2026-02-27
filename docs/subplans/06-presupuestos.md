@@ -1,5 +1,22 @@
 # Subplan 6: Presupuestos (Domain + Application)
 
+## Estado: ✅ IMPLEMENTADO
+
+### Archivos creados
+- `src/domain/entities/Budget.ts` + `Budget.test.ts` — entidad Budget con getAvailable, getOverspent, getGoalProgress, isOverBudget, hasGoal
+- `src/domain/repositories/BudgetRepository.ts` — interfaz BudgetRepository (findById, findByMonthAndCategory, findByMonth, save, saveMany, delete, isMonthCreated, markMonthCreated)
+- `src/infrastructure/persistence/sqlite/schema.ts` — tablas `zero_budgets` y `created_budgets` agregadas al schema Drizzle
+- `drizzle/0001_lazy_whiplash.sql` + `_journal.json` + `migrations.js` — auto-generados por `npx drizzle-kit generate`
+- `src/infrastructure/persistence/sqlite/repositories/DrizzleBudgetRepository.ts` + `DrizzleBudgetRepository.test.ts` — upsert por id, onConflictDoNothing para createdBudgets
+- `src/application/dtos/BudgetDTO.ts` — CategoryBudgetDTO, GroupBudgetDTO, MonthBudgetSummaryDTO
+- `src/application/services/BudgetCalculationService.ts` + `BudgetCalculationService.test.ts` — calculateMonthSummary con income, toBeBudgeted, grouping
+- `src/application/use-cases/budget/` — SetBudgetAmount, GetBudgetSummary, CopyBudgetMonth, RolloverMonth + SetBudgetAmount.test.ts + index.ts
+
+### Nota de implementacion
+Las migraciones se generan con `npx drizzle-kit generate` (no SQL manual). Se agregaron las tablas a `schema.ts` y se ejecuto el comando para auto-generar `0001_lazy_whiplash.sql`.
+
+---
+
 ## Objetivo
 
 Implementar el sistema de envelope budgeting de Actual Budget.
@@ -684,12 +701,12 @@ describe('BudgetCalculationService', () => {
 
 ### Criterios de Exito
 
-- [ ] Budget entity calcula available correctamente
-- [ ] SetBudgetAmount crea/actualiza presupuestos
-- [ ] GetBudgetSummary retorna datos completos
-- [ ] CopyBudgetMonth copia correctamente
-- [ ] Carryover se calcula correctamente
-- [ ] Income se calcula solo de categorias de ingreso
+- [x] Budget entity calcula available correctamente
+- [x] SetBudgetAmount crea/actualiza presupuestos
+- [x] GetBudgetSummary retorna datos completos
+- [x] CopyBudgetMonth copia correctamente
+- [x] Carryover se calcula correctamente
+- [x] Income se calcula solo de categorias de ingreso
 
 ---
 

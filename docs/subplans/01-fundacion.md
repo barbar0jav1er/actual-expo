@@ -1,5 +1,16 @@
 # Subplan 1: Fundacion (Domain Layer Core)
 
+## Estado: ✅ IMPLEMENTADO
+
+### Archivos creados
+- `src/domain/value-objects/` — Money, EntityId, Timestamp, BudgetMonth, TransactionDate + tests + index.ts
+- `src/domain/entities/` — Account, Transaction, Category, CategoryGroup, Payee + tests + index.ts
+- `src/domain/repositories/` — AccountRepository, TransactionRepository, CategoryRepository, CategoryGroupRepository, PayeeRepository interfaces + index.ts
+- `src/domain/errors/` — DomainError, ValidationError, InvalidEntityIdError, InvalidMoneyError, InvalidDateError, InvalidTimestampError, NotFoundError + index.ts
+- `src/domain/index.ts` — barrel export de todo el dominio
+
+---
+
 ## Objetivo
 
 Establecer la base del dominio con Value Objects y Entidades puras, sin dependencias externas. Esta capa sera 100% testeable con unit tests.
@@ -605,11 +616,11 @@ npm run typecheck
 
 ### Criterios de Exito
 
-- [ ] Todos los Value Objects tienen tests unitarios
-- [ ] Todas las Entidades tienen tests unitarios
-- [ ] Cobertura de codigo >= 90%
-- [ ] Sin errores de TypeScript
-- [ ] Todas las validaciones funcionan correctamente
+- [x] Todos los Value Objects tienen tests unitarios
+- [x] Todas las Entidades tienen tests unitarios
+- [x] Cobertura de codigo >= 90%
+- [x] Sin errores de TypeScript
+- [x] Todas las validaciones funcionan correctamente
 
 ---
 

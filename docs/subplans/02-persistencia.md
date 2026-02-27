@@ -1,5 +1,19 @@
 # Subplan 2: Persistencia (Infrastructure - SQLite + Drizzle ORM)
 
+## Estado: ✅ IMPLEMENTADO
+
+### Archivos creados
+- `drizzle.config.ts` — configuracion drizzle-kit
+- `drizzle/0000_*.sql` + `_journal.json` + `migrations.js` — auto-generados por `npx drizzle-kit generate`
+- `src/infrastructure/persistence/sqlite/schema.ts` — todas las tablas (accounts, categories, payees, transactions, messages_crdt, messages_clock, categoryMapping, payeeMapping)
+- `src/infrastructure/persistence/sqlite/database.ts` — factory para drizzle + expo-sqlite
+- `src/infrastructure/persistence/sqlite/migrate.ts` — aplica migraciones en runtime
+- `src/infrastructure/persistence/sqlite/mappers/` — AccountMapper, TransactionMapper, CategoryMapper, CategoryGroupMapper, PayeeMapper + index.ts
+- `src/infrastructure/persistence/sqlite/repositories/` — DrizzleAccountRepository, DrizzleTransactionRepository, DrizzleCategoryRepository, DrizzleCategoryGroupRepository, DrizzlePayeeRepository + tests + index.ts
+- `src/infrastructure/persistence/sqlite/__tests__/createTestDb.ts` — helper de test con better-sqlite3
+
+---
+
 ## Objetivo
 
 Implementar la capa de persistencia usando **Drizzle ORM** sobre **expo-sqlite**, con repositorios que implementen los ports definidos en el Subplan 1. Drizzle provee type-safety end-to-end, un query builder ergonómico y generación automática de migraciones via `drizzle-kit`.
@@ -617,12 +631,12 @@ bun run typecheck
 
 ### Criterios de Éxito
 
-- [ ] Schema Drizzle cubre todas las tablas del dominio (accounts, categories, payees, transactions, CRDT)
-- [ ] `drizzle-kit generate` genera migraciones sin errores
-- [ ] Migraciones se aplican correctamente en runtime (expo) y en tests (better-sqlite3)
-- [ ] Todos los repositorios implementan sus interfaces del dominio
-- [ ] Mappers convierten correctamente en ambas direcciones usando tipos inferidos del schema
-- [ ] Tests de integración pasan con SQLite en memoria (better-sqlite3)
-- [ ] Transacciones (`saveMany`) son atómicas
-- [ ] Soft deletes funcionan (tombstone = 1, excluidos en findAll/findActive)
-- [ ] Sin errores de TypeScript (`bun run typecheck`)
+- [x] Schema Drizzle cubre todas las tablas del dominio (accounts, categories, payees, transactions, CRDT)
+- [x] `drizzle-kit generate` genera migraciones sin errores
+- [x] Migraciones se aplican correctamente en runtime (expo) y en tests (better-sqlite3)
+- [x] Todos los repositorios implementan sus interfaces del dominio
+- [x] Mappers convierten correctamente en ambas direcciones usando tipos inferidos del schema
+- [x] Tests de integración pasan con SQLite en memoria (better-sqlite3)
+- [x] Transacciones (`saveMany`) son atómicas
+- [x] Soft deletes funcionan (tombstone = 1, excluidos en findAll/findActive)
+- [x] Sin errores de TypeScript (`bun run typecheck`)

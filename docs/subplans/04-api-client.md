@@ -1,5 +1,23 @@
 # Subplan 4: API Client y Autenticacion (Infrastructure - API)
 
+## Estado: ✅ IMPLEMENTADO
+
+### Archivos creados
+- `src/infrastructure/api/HttpClient.ts` + `HttpClient.test.ts` — cliente HTTP con timeout, manejo de errores
+- `src/infrastructure/api/ActualServerClient.ts` + `ActualServerClient.test.ts` — cliente principal con token
+- `src/infrastructure/api/endpoints/AuthEndpoints.ts` + `AuthEndpoints.test.ts` — needsBootstrap, login, validate, changePassword
+- `src/infrastructure/api/endpoints/SyncEndpoints.ts` + `SyncEndpoints.test.ts` — sync, getUserKey, createUserKey
+- `src/infrastructure/api/endpoints/FileEndpoints.ts` + `FileEndpoints.test.ts` — listFiles, getFileInfo, downloadFile, uploadFile, deleteFile, resetFile
+- `src/infrastructure/api/endpoints/index.ts`
+- `src/infrastructure/api/types/ApiResponses.ts` + `ApiErrors.ts` — ApiError, NetworkError
+- `src/infrastructure/api/index.ts`
+- `src/infrastructure/encryption/AESEncryptionService.ts` + `AESEncryptionService.test.ts` — AES-256-GCM encrypt/decrypt
+- `src/infrastructure/encryption/KeyDerivation.ts` + `KeyDerivation.test.ts` — PBKDF2 deriveKey, generateSalt, generateKeyId
+- `src/infrastructure/encryption/index.ts`
+- `src/infrastructure/storage/SecureTokenStorage.ts` + `index.ts` — expo-secure-store wrapper
+
+---
+
 ## Objetivo
 
 Implementar cliente HTTP para comunicacion con el servidor Actual Budget, incluyendo autenticacion y encriptacion.
@@ -741,13 +759,13 @@ describe('AESEncryptionService', () => {
 
 ### Criterios de Exito
 
-- [ ] HttpClient maneja timeouts correctamente
-- [ ] AuthEndpoints login/validate funcionan
-- [ ] SyncEndpoints envia/recibe mensajes binarios
-- [ ] FileEndpoints list/download/upload funcionan
-- [ ] AES encryption/decryption es correcto
-- [ ] Key derivation es compatible con servidor
-- [ ] SecureStore guarda/recupera tokens
+- [x] HttpClient maneja timeouts correctamente
+- [x] AuthEndpoints login/validate funcionan
+- [x] SyncEndpoints envia/recibe mensajes binarios
+- [x] FileEndpoints list/download/upload funcionan
+- [x] AES encryption/decryption es correcto
+- [x] Key derivation es compatible con servidor
+- [x] SecureStore guarda/recupera tokens
 
 ### Test de Integracion (Opcional)
 

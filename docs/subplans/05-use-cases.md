@@ -1,5 +1,22 @@
 # Subplan 5: Use Cases Core (Application Layer)
 
+## Estado: ✅ IMPLEMENTADO
+
+### Archivos creados
+- `src/application/dtos/` — AccountDTO, TransactionDTO, CategoryDTO, CategoryGroupDTO, PayeeDTO + index.ts
+- `src/application/services/SyncService.ts` — interfaz SyncService + CrdtSyncService (field-level CRDT via Clock)
+- `src/application/services/SyncCoordinator.ts` + `SyncCoordinator.test.ts` — debounced sync con retry (5s merkle diff, 30s error)
+- `src/application/use-cases/accounts/` — CreateAccount, UpdateAccount, CloseAccount, GetAccounts, GetAccountBalance + CreateAccount.test.ts + index.ts
+- `src/application/use-cases/transactions/` — CreateTransaction, UpdateTransaction, DeleteTransaction, GetTransactions, SplitTransaction + CreateTransaction.test.ts + index.ts
+- `src/application/use-cases/categories/` — CreateCategory, CreateCategoryGroup, GetCategories + index.ts
+- `src/application/use-cases/payees/` — CreatePayee, GetPayees, MergePayees + index.ts
+- `src/application/use-cases/sync/` — FullSync, FullSync.test.ts, ApplyRemoteChanges + index.ts
+- `src/application/use-cases/index.ts`
+- `src/application/index.ts`
+- `src/domain/errors/NotFoundError.ts` — NotFoundError (agregado a dominio)
+
+---
+
 ## Objetivo
 
 Implementar la logica de aplicacion con casos de uso que orquestan las operaciones del dominio.
@@ -778,12 +795,12 @@ describe('CreateTransaction', () => {
 
 ### Criterios de Exito
 
-- [ ] CreateAccount crea cuenta y transfer payee
-- [ ] CreateTransaction valida relaciones
-- [ ] GetTransactions filtra correctamente
-- [ ] FullSync envia y recibe mensajes
-- [ ] ApplyRemoteChanges aplica LWW correctamente
-- [ ] SyncCoordinator programa syncs correctamente
+- [x] CreateAccount crea cuenta y transfer payee
+- [x] CreateTransaction valida relaciones
+- [x] GetTransactions filtra correctamente
+- [x] FullSync envia y recibe mensajes
+- [x] ApplyRemoteChanges aplica LWW correctamente
+- [x] SyncCoordinator programa syncs correctamente
 
 ---
 
