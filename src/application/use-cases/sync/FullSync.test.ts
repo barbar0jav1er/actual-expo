@@ -119,10 +119,9 @@ describe('FullSync', () => {
 
     const mockEncoder = { encode: vi.fn().mockReturnValue(new Uint8Array()) }
     const mockDecoder = {
-      decode: vi.fn().mockReturnValue({
-        messages: remoteMessages,
-        merkle: MerkleTree.emptyTrie(),
-      }),
+      decode: vi.fn()
+        .mockReturnValueOnce({ messages: remoteMessages, merkle: MerkleTree.emptyTrie() })
+        .mockReturnValue({ messages: [], merkle: MerkleTree.emptyTrie() }),
     }
     const mockEndpoints = { sync: vi.fn().mockResolvedValue(new Uint8Array()) }
 

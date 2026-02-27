@@ -40,12 +40,14 @@ export class FullSync {
     let iterations = 0
     const maxIterations = 50
 
+    // Compute initial since once before the loop
+    let since = clock.getMerkle().hash === 0
+      ? '1970-01-01T00:00:00.000Z-0000-0000000000000000'
+      : clock.getTimestamp().toString()
+
     while (!converged && iterations < maxIterations) {
       iterations++
-      // If it's a new clock, we want to fetch all messages, so we use an early timestamp
-      const since = clockState.merkle.hash === 0 
-        ? '1970-01-01T00:00:00.000Z-0000-0000000000000000'
-        : clock.getTimestamp().toString()
+      const prevMerkle = clock.getMerkle()
 
       // 2. Get local messages since last sync
       const localMessages = await this.syncRepo.getMessages(since)
@@ -65,7 +67,7 @@ export class FullSync {
       // 5. Decode response
       const { messages: remoteMessages, merkle: remoteMerkle } =
         this.syncDecoder.decode(responseBuffer)
-      
+
       // 6. Process only NEW remote messages
       const newMessages: typeof remoteMessages = []
       for (const msg of remoteMessages) {
@@ -92,31 +94,34 @@ export class FullSync {
         // Apply changes to domain entities
         await this.applyRemoteChanges.execute({ messages: newMessages })
 
-        // Update clock and Merkle only with these NEW messages
+        // Update clock timestamp with new messages (no longer building own Merkle)
         for (const msg of newMessages) {
           const ts = Timestamp.parse(msg.timestamp)
           if (ts) {
             clock.recv(ts)
-            clock.updateMerkle(ts)
           }
         }
       }
 
-      // 8. Check merkle diff for divergence
-      const diff = MerkleTree.diff(clock.getMerkle(), remoteMerkle)
+      // Adopt server's Merkle (we don't generate local CRDT messages)
+      clock.setMerkle(remoteMerkle)
+
+      // 8. Check merkle diff for convergence
+      const diff = MerkleTree.diff(prevMerkle, remoteMerkle)
       if (diff === null) {
         converged = true
       } else {
-        if (remoteMessages.length === 0 || newMessages.length === 0) {
-          // No new messages to process but still divergent — local data may need to sync
+        if (newMessages.length === 0) {
+          // No new messages to process but still divergent — stuck
           console.warn('Merkle divergence detected but no new messages returned at timestamp:', diff)
           break
         }
+        // Advance since to divergence time for next iteration
+        since = Timestamp.create(diff, 0, '0000000000000000').toString()
       }
     }
 
-    // 9. Prune and save clock state
-    clock.pruneMerkle()
+    // 9. Save clock state
     await this.syncRepo.saveClock(clock.getState())
 
     return {

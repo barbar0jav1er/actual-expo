@@ -121,6 +121,10 @@ export class Clock {
     };
   }
 
+  setMerkle(trie: TrieNode): void {
+    this.state = { ...this.state, merkle: trie };
+  }
+
   getMerkle(): TrieNode {
     return this.state.merkle;
   }
