@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { FullSync } from '@application/use-cases/sync'
 
 interface SyncState {
   isSyncing: boolean
@@ -10,16 +11,26 @@ interface SyncActions {
   triggerSync: () => Promise<void>
 }
 
+let fullSyncUseCase: FullSync
+
+export function initializeSyncStore(fullSync: FullSync) {
+  fullSyncUseCase = fullSync
+}
+
 export const useSyncStore = create<SyncState & SyncActions>((set) => ({
   isSyncing: false,
   lastSyncAt: null,
   error: null,
 
   triggerSync: async () => {
+    if (!fullSyncUseCase) {
+      console.warn('Sync store not initialized')
+      return
+    }
+
     set({ isSyncing: true, error: null })
     try {
-      // Placeholder for future sync integration
-      await new Promise<void>((resolve) => setTimeout(resolve, 500))
+      await fullSyncUseCase.execute()
       set({ isSyncing: false, lastSyncAt: new Date() })
     } catch (err) {
       set({

@@ -1,6 +1,6 @@
 import { useTheme } from "@/hooks/use-theme";
 import { Button } from "@/presentation/components/common";
-import { useAuthStore, useSyncStore } from "@/presentation/stores";
+import { useAuthStore, useSyncStore, useFileStore } from "@/presentation/stores";
 import React from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -9,6 +9,7 @@ export default function SettingsScreen() {
   const colors = useTheme();
   const { user, serverUrl, logout } = useAuthStore();
   const { isSyncing, lastSyncAt, triggerSync } = useSyncStore();
+  const { activeFileId, clearActiveFile } = useFileStore();
 
   const lastSyncLabel = lastSyncAt
     ? new Intl.DateTimeFormat("en-US", {
@@ -58,6 +59,33 @@ export default function SettingsScreen() {
             >
               {serverUrl ?? "—"}
             </Text>
+          </View>
+        </View>
+
+        <View
+          style={[
+            styles.section,
+            {
+              backgroundColor: colors.cardBackground,
+              borderColor: colors.separator,
+            },
+          ]}
+        >
+          <Text style={[styles.sectionTitle, { color: colors.textSubdued }]}>
+            Budget
+          </Text>
+          <View style={[styles.row, { borderBottomColor: colors.separator }]}>
+            <Text style={[styles.rowLabel, { color: colors.textSubdued }]}>
+              Current File
+            </Text>
+            <Text style={[styles.rowValue, { color: colors.textPrimary }]}>
+              {activeFileId ?? "—"}
+            </Text>
+          </View>
+          <View style={styles.rowAction}>
+            <Button variant="secondary" size="sm" onPress={clearActiveFile}>
+              Change Budget
+            </Button>
           </View>
         </View>
 

@@ -61,10 +61,7 @@ export class CategoryGroup {
   }
 
   rename(name: string): void {
-    if (!name || name.trim().length === 0) {
-      throw new ValidationError('name', 'Category group name cannot be empty')
-    }
-    this.props.name = name.trim()
+    this.props.name = (name ?? '').trim()
   }
 
   hide(): void {

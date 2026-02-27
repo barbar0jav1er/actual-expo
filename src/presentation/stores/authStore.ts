@@ -84,7 +84,10 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
   },
 
   logout: async () => {
-    await storage.clearToken()
+    await Promise.all([
+      storage.clearToken(),
+      storage.clearActiveFile(),
+    ])
     set({
       isAuthenticated: false,
       user: null,

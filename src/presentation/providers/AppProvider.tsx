@@ -8,8 +8,6 @@ interface AppProviderProps {
 
 export function AppProvider({ children }: AppProviderProps) {
   return (
-    <DatabaseProvider>
-      <AuthProvider>{children}</AuthProvider>
-    </DatabaseProvider>
+    <AuthProvider>{children}</AuthProvider>
   )
 }

@@ -69,10 +69,7 @@ export class Payee {
   }
 
   rename(name: string): void {
-    if (!name || name.trim().length === 0) {
-      throw new ValidationError('name', 'Payee name cannot be empty')
-    }
-    this.props.name = name.trim()
+    this.props.name = (name ?? '').trim()
   }
 
   delete(): void {

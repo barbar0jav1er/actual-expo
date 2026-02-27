@@ -71,10 +71,7 @@ export class Category {
   }
 
   rename(name: string): void {
-    if (!name || name.trim().length === 0) {
-      throw new ValidationError('name', 'Category name cannot be empty')
-    }
-    this.props.name = name.trim()
+    this.props.name = (name ?? '').trim()
   }
 
   moveTo(groupId: EntityId): void {
