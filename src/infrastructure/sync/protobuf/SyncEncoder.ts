@@ -1,4 +1,5 @@
 import {
+  encodeEncryptedData,
   encodeMessage,
   encodeSyncRequest,
   type ProtoSyncRequest,
@@ -11,8 +12,12 @@ export interface SyncMessage {
   column: string
   value: string
   isEncrypted?: boolean
-  /** Raw encrypted content bytes (used when isEncrypted = true) */
-  encryptedContent?: Uint8Array
+  /** Pre-encrypted content (iv + authTag + data as raw bytes) */
+  encryptedData?: {
+    iv: Uint8Array
+    authTag: Uint8Array
+    data: Uint8Array
+  }
 }
 
 export interface SyncEncodeParams {
@@ -33,15 +38,14 @@ export class SyncEncoder {
       messages: params.messages.map(msg => ({
         timestamp: msg.timestamp,
         isEncrypted: msg.isEncrypted ?? false,
-        content:
-          msg.isEncrypted && msg.encryptedContent
-            ? msg.encryptedContent
-            : encodeMessage({
-                dataset: msg.dataset,
-                row: msg.row,
-                column: msg.column,
-                value: msg.value,
-              }),
+        content: msg.isEncrypted && msg.encryptedData
+          ? encodeEncryptedData(msg.encryptedData)
+          : encodeMessage({
+              dataset: msg.dataset,
+              row: msg.row,
+              column: msg.column,
+              value: msg.value,
+            }),
       })),
     }
 

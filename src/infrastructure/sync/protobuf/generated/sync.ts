@@ -9,6 +9,12 @@
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+export interface ProtoEncryptedData {
+  iv: Uint8Array      // 12 bytes
+  authTag: Uint8Array // 16 bytes
+  data: Uint8Array
+}
+
 export interface ProtoMessage {
   dataset: string
   row: string
@@ -217,6 +223,39 @@ export function encodeSyncRequest(req: ProtoSyncRequest): Uint8Array {
   parts.push(encodeStringField(6, req.since))
 
   return concat(parts)
+}
+
+/**
+ * EncryptedData protobuf message:
+ *   bytes iv = 1;      (12 bytes)
+ *   bytes authTag = 2; (16 bytes)
+ *   bytes data = 3;
+ */
+export function encodeEncryptedData(enc: ProtoEncryptedData): Uint8Array {
+  return concat([
+    encodeLengthDelimited(1, enc.iv),
+    encodeLengthDelimited(2, enc.authTag),
+    encodeLengthDelimited(3, enc.data),
+  ])
+}
+
+export function decodeEncryptedData(buf: Uint8Array): ProtoEncryptedData {
+  const r = new Reader(buf)
+  const enc: ProtoEncryptedData = {
+    iv: new Uint8Array(0),
+    authTag: new Uint8Array(0),
+    data: new Uint8Array(0),
+  }
+  while (r.remaining > 0) {
+    const [field, wire] = r.readTag()
+    switch (field) {
+      case 1: enc.iv = r.readBytes(); break
+      case 2: enc.authTag = r.readBytes(); break
+      case 3: enc.data = r.readBytes(); break
+      default: r.skipField(wire)
+    }
+  }
+  return enc
 }
 
 export function decodeSyncResponse(buf: Uint8Array): ProtoSyncResponse {

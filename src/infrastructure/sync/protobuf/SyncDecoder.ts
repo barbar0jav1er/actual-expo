@@ -1,7 +1,9 @@
 import {
+  decodeEncryptedData,
   decodeMessage,
   decodeMessageEnvelope,
   decodeSyncResponse,
+  type ProtoEncryptedData,
   type ProtoMessage,
   type ProtoMessageEnvelope,
 } from './generated/sync'
@@ -14,6 +16,8 @@ export interface DecodedMessage {
   column: string
   value: string
   isEncrypted: boolean
+  /** Raw EncryptedData when isEncrypted = true (iv, authTag, data as bytes) */
+  encryptedData?: ProtoEncryptedData
 }
 
 export interface DecodedSyncResponse {
@@ -27,14 +31,22 @@ export class SyncDecoder {
 
     const messages: DecodedMessage[] = response.messages.map(
       (envelope: ProtoMessageEnvelope) => {
-        let content: ProtoMessage = {
-          dataset: '',
-          row: '',
-          column: '',
-          value: '',
+        if (envelope.isEncrypted) {
+          // Content is a serialized EncryptedData protobuf message
+          const encryptedData = decodeEncryptedData(envelope.content)
+          return {
+            timestamp: envelope.timestamp,
+            dataset: '',
+            row: '',
+            column: '',
+            value: '',
+            isEncrypted: true,
+            encryptedData,
+          }
         }
 
-        if (!envelope.isEncrypted && envelope.content.length > 0) {
+        let content: ProtoMessage = { dataset: '', row: '', column: '', value: '' }
+        if (envelope.content.length > 0) {
           content = decodeMessage(envelope.content)
         }
 
@@ -44,7 +56,7 @@ export class SyncDecoder {
           row: content.row,
           column: content.column,
           value: content.value,
-          isEncrypted: envelope.isEncrypted,
+          isEncrypted: false,
         }
       }
     )
