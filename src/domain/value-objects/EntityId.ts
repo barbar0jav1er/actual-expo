@@ -1,3 +1,4 @@
+import * as ExpoCrypto from 'expo-crypto'
 import { InvalidEntityIdError } from '../errors'
 
 const UUID_REGEX =
@@ -7,7 +8,7 @@ export class EntityId {
   private constructor(private readonly value: string) {}
 
   static create(): EntityId {
-    const uuid = crypto.randomUUID()
+    const uuid = ExpoCrypto.randomUUID()
     return new EntityId(uuid)
   }
 

@@ -17,6 +17,8 @@ export default defineConfig({
       '@domain': '/src/domain',
       '@application': '/src/application',
       '@infrastructure': '/src/infrastructure',
+      // expo-crypto usa react-native internamente, incompatible con Node/vitest
+      'expo-crypto': '/src/test-mocks/expo-crypto.ts',
     },
   },
 })
