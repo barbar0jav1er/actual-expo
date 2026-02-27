@@ -27,6 +27,10 @@ export class DrizzlePayeeRepository implements PayeeRepository {
     return rows.map(PayeeMapper.toDomain)
   }
 
+  async findActive(): Promise<Payee[]> {
+    return this.findAll()
+  }
+
   async findByName(name: string): Promise<Payee | null> {
     const row = await (this.db as any)
       .select()

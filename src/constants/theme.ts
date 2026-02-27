@@ -14,6 +14,18 @@ export const Colors = {
     backgroundElement: '#F0F0F3',
     backgroundSelected: '#E0E1E6',
     textSecondary: '#60646C',
+    // Semantic tokens
+    primary: '#8719e0',
+    primaryLight: '#f2ebfe',
+    pageBackground: '#f6f8fa',
+    cardBackground: '#ffffff',
+    separator: '#e8ecf0',
+    textPrimary: '#272630',
+    textSubdued: '#9fb3c8',
+    numberPositive: '#147d64',
+    numberNegative: '#e12d39',
+    tabActive: '#8719e0',
+    tabInactive: '#9fb3c8',
   },
   dark: {
     text: '#ffffff',
@@ -21,6 +33,18 @@ export const Colors = {
     backgroundElement: '#212225',
     backgroundSelected: '#2E3135',
     textSecondary: '#B0B4BA',
+    // Semantic tokens
+    primary: '#9446ed',
+    primaryLight: '#2a1a4a',
+    pageBackground: '#080811',
+    cardBackground: '#141520',
+    separator: '#243b53',
+    textPrimary: '#d9e2ec',
+    textSubdued: '#627d98',
+    numberPositive: '#3ebd93',
+    numberNegative: '#ff9b9b',
+    tabActive: '#9446ed',
+    tabInactive: '#627d98',
   },
 } as const;
 

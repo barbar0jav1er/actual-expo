@@ -28,6 +28,10 @@ export class DrizzleCategoryGroupRepository implements CategoryGroupRepository {
     return rows.map(CategoryGroupMapper.toDomain)
   }
 
+  async findActive(): Promise<CategoryGroup[]> {
+    return this.findAll()
+  }
+
   async save(group: CategoryGroup): Promise<void> {
     const row = CategoryGroupMapper.toPersistence(group)
     await (this.db as any)

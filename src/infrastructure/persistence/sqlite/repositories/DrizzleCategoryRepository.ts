@@ -28,6 +28,10 @@ export class DrizzleCategoryRepository implements CategoryRepository {
     return rows.map(CategoryMapper.toDomain)
   }
 
+  async findActive(): Promise<Category[]> {
+    return this.findAll()
+  }
+
   async findByGroup(groupId: EntityId): Promise<Category[]> {
     const rows = await (this.db as any)
       .select()

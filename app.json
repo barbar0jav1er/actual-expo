@@ -8,7 +8,8 @@
     "scheme": "actualexpotemp",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.anonymous.actual-expo-temp"
     },
     "android": {
       "adaptiveIcon": {
@@ -34,7 +35,8 @@
             "imageWidth": 76
           }
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,
