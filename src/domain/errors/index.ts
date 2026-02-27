@@ -6,3 +6,4 @@ export {
   InvalidDateError,
   InvalidTimestampError,
 } from './ValidationError'
+export { NotFoundError } from './NotFoundError'

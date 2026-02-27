@@ -1,0 +1,6 @@
+export { CreatePayee } from './CreatePayee'
+export type { CreatePayeeInput, CreatePayeeOutput } from './CreatePayee'
+export { GetPayees } from './GetPayees'
+export type { GetPayeesInput, GetPayeesOutput } from './GetPayees'
+export { MergePayees } from './MergePayees'
+export type { MergePayeesInput } from './MergePayees'

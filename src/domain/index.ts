@@ -38,4 +38,5 @@ export {
   InvalidMoneyError,
   InvalidDateError,
   InvalidTimestampError,
+  NotFoundError,
 } from './errors'
