@@ -30,7 +30,6 @@ export class CrdtSyncService implements SyncService {
     for (const change of changes) {
       for (const [column, value] of Object.entries(change.data)) {
         const ts = this.clock.send()
-        this.clock.updateMerkle(ts)
         messages.push({
           timestamp: ts.toString(),
           dataset: change.table,
@@ -42,6 +41,5 @@ export class CrdtSyncService implements SyncService {
     }
 
     await this.syncRepo.saveMessages(messages)
-    await this.syncRepo.saveClock(this.clock.getState())
   }
 }

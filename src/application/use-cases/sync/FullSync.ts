@@ -1,7 +1,7 @@
 import { Clock } from '@infrastructure/sync/crdt/Clock'
 import { MerkleTree } from '@infrastructure/sync/crdt/MerkleTree'
 import { Timestamp } from '@domain/value-objects'
-import type { SyncRepository } from '@infrastructure/sync/repositories/SQLiteSyncRepository'
+import type { SyncRepository, StoredMessage } from '@infrastructure/sync/repositories/SQLiteSyncRepository'
 import type { SyncEndpoints } from '@infrastructure/api/endpoints/SyncEndpoints'
 import type { SyncEncoder } from '@infrastructure/sync/protobuf/SyncEncoder'
 import type { SyncDecoder } from '@infrastructure/sync/protobuf/SyncDecoder'
@@ -45,12 +45,15 @@ export class FullSync {
       ? '1970-01-01T00:00:00.000Z-0000-0000000000000000'
       : clock.getTimestamp().toString()
 
+    let lastLocalMessages: StoredMessage[] = []
+
     while (!converged && iterations < maxIterations) {
       iterations++
       const prevMerkle = clock.getMerkle()
 
       // 2. Get local messages since last sync
       const localMessages = await this.syncRepo.getMessages(since)
+      lastLocalMessages = localMessages
       messagesSentCount += localMessages.length
 
       // 3. Encode request
@@ -111,17 +114,21 @@ export class FullSync {
       if (diff === null) {
         converged = true
       } else {
-        if (newMessages.length === 0) {
-          // No new messages to process but still divergent — stuck
-          console.warn('Merkle divergence detected but no new messages returned at timestamp:', diff)
-          break
-        }
-        // Advance since to divergence time for next iteration
+        // Advance since to divergence time for next iteration.
+        // newMessages may be 0 here if server absorbed our local messages and
+        // its Merkle changed — iter 2 will re-send them and confirm convergence.
         since = Timestamp.create(diff, 0, '0000000000000000').toString()
       }
     }
 
-    // 9. Save clock state
+    // 9. Advance clock past all locally-generated messages that were just confirmed
+    // as sent. This prevents future syncs from re-sending them unnecessarily.
+    for (const msg of lastLocalMessages) {
+      const ts = Timestamp.parse(msg.timestamp)
+      if (ts) clock.recv(ts)
+    }
+
+    // 10. Save clock state
     await this.syncRepo.saveClock(clock.getState())
 
     return {

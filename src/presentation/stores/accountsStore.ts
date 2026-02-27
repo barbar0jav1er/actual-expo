@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import type { AccountDTO } from '@application/dtos'
 import type { GetAccounts } from '@application/use-cases/accounts'
 import type { CreateAccount } from '@application/use-cases/accounts'
+import { useSyncStore } from './syncStore'
 
 interface AccountsState {
   accounts: AccountDTO[]
@@ -52,6 +53,7 @@ export const useAccountsStore = create<AccountsStoreInternal>((set, get) => ({
     try {
       await _createAccount.execute({ name, offbudget })
       await fetchAccounts()
+      void useSyncStore.getState().triggerSync()
     } catch (err) {
       set({
         error: err instanceof Error ? err.message : 'Failed to create account',
