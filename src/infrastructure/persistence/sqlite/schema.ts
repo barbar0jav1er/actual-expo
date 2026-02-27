@@ -76,3 +76,18 @@ export const payeeMapping = sqliteTable('payee_mapping', {
   id:       text('id').primaryKey(),
   targetId: text('target_id'),
 })
+
+// Tablas de presupuesto (envelope budgeting)
+export const zeroBudgets = sqliteTable('zero_budgets', {
+  id:        text('id').primaryKey(),
+  month:     integer('month').notNull(),    // YYYYMM
+  category:  text('category').notNull().references(() => categories.id),
+  amount:    integer('amount').notNull().default(0),    // presupuestado (centavos)
+  carryover: integer('carryover').notNull().default(0), // sobrante del mes anterior
+  goal:      integer('goal'),              // objetivo (centavos)
+  longGoal:  integer('long_goal'),         // objetivo a largo plazo
+})
+
+export const createdBudgets = sqliteTable('created_budgets', {
+  month: integer('month').primaryKey(), // YYYYMM
+})

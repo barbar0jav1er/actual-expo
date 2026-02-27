@@ -14,11 +14,13 @@ export {
   Category,
   CategoryGroup,
   Payee,
+  Budget,
   type AccountProps,
   type TransactionProps,
   type CategoryProps,
   type CategoryGroupProps,
   type PayeeProps,
+  type BudgetProps,
 } from './entities'
 
 // Repository Interfaces (Ports)
@@ -28,6 +30,7 @@ export type {
   CategoryRepository,
   CategoryGroupRepository,
   PayeeRepository,
+  BudgetRepository,
 } from './repositories'
 
 // Errors
