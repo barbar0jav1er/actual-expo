@@ -30,7 +30,7 @@ export class GetAccounts {
   private async calculateBalance(accountId: EntityId): Promise<Money> {
     const transactions = await this.transactionRepo.findByAccount(accountId)
     return transactions
-      .filter(tx => !tx.tombstone)
+      .filter(tx => !tx.tombstone && !tx.isParent)
       .reduce((sum, tx) => sum.add(tx.amount), Money.zero())
   }
 

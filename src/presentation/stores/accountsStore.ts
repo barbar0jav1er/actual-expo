@@ -13,7 +13,7 @@ interface AccountsState {
 
 interface AccountsActions {
   fetchAccounts: () => Promise<void>
-  createAccount: (name: string, offbudget?: boolean) => Promise<void>
+  createAccount: (name: string, offbudget?: boolean, initialBalance?: number) => Promise<void>
   selectAccount: (id: string | null) => void
   getTotalBalance: () => number
 }
@@ -46,12 +46,12 @@ export const useAccountsStore = create<AccountsStoreInternal>((set, get) => ({
     }
   },
 
-  createAccount: async (name: string, offbudget = false) => {
+  createAccount: async (name: string, offbudget = false, initialBalance = 0) => {
     const { _createAccount, fetchAccounts } = get()
     if (!_createAccount) return
     set({ isLoading: true, error: null })
     try {
-      await _createAccount.execute({ name, offbudget })
+      await _createAccount.execute({ name, offbudget, initialBalance })
       await fetchAccounts()
       void useSyncStore.getState().triggerSync()
     } catch (err) {

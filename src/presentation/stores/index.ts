@@ -1,5 +1,5 @@
 export { useAuthStore } from './authStore'
 export { useAccountsStore, initializeAccountsStore } from './accountsStore'
 export { useTransactionsStore, initializeTransactionsStore } from './transactionsStore'
-export { useSyncStore, initializeSyncStore } from './syncStore'
+export { useSyncStore, initializeSyncStore, setSyncRefreshCallback } from './syncStore'
 export { useFileStore } from './fileStore'

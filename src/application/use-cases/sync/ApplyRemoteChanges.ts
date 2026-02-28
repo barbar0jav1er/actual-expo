@@ -36,7 +36,11 @@ export class ApplyRemoteChanges {
 
     for (const [table, rowMap] of byEntity) {
       for (const [rowId, messages] of rowMap) {
-        await this.applyToEntity(table, rowId, messages)
+        try {
+          await this.applyToEntity(table, rowId, messages)
+        } catch (err) {
+          console.warn(`[ApplyRemoteChanges] failed for ${table}/${rowId}:`, err)
+        }
       }
     }
   }
@@ -159,10 +163,9 @@ export class ApplyRemoteChanges {
     for (const msg of messages) {
       const value = ValueSerializer.deserialize(msg.value)
       switch (msg.column) {
+        case 'account': // legacy: old CRDT messages used 'account' before being corrected to 'acct'
         case 'acct':
           if (typeof value === 'string') {
-            // Reconstruct with new accountId requires reconstituting the entity
-            // We use the internal props approach via the reconstitute method
             tx = Transaction.reconstitute({ ...tx.toObject(), accountId: EntityId.fromString(value) })
           }
           break
@@ -175,6 +178,7 @@ export class ApplyRemoteChanges {
         case 'category':
           tx.setCategory(typeof value === 'string' ? EntityId.fromString(value) : undefined)
           break
+        case 'payee': // legacy: old CRDT messages used 'payee' before being corrected to 'description'
         case 'description':
           tx.setPayee(typeof value === 'string' ? EntityId.fromString(value) : undefined)
           break

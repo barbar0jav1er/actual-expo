@@ -57,7 +57,7 @@ export default function AccountsScreen() {
       <AccountForm
         visible={showForm}
         onClose={() => setShowForm(false)}
-        onSubmit={({ name, offbudget }) => createAccount(name, offbudget)}
+        onSubmit={({ name, offbudget, initialBalance }) => createAccount(name, offbudget, initialBalance)}
       />
     </SafeAreaView>
   );

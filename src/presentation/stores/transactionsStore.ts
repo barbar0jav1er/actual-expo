@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import type { TransactionDTO } from '@application/dtos'
 import type { GetTransactions, GetTransactionsInput } from '@application/use-cases/transactions'
 import type { CreateTransaction, CreateTransactionInput } from '@application/use-cases/transactions'
+import { useAccountsStore } from './accountsStore'
 
 interface TransactionsState {
   transactions: TransactionDTO[]
@@ -52,6 +53,7 @@ export const useTransactionsStore = create<TransactionsStoreInternal>((set, get)
     try {
       await _createTransaction.execute(data)
       await fetchTransactions()
+      await useAccountsStore.getState().fetchAccounts()
     } catch (err) {
       set({
         error: err instanceof Error ? err.message : 'Failed to create transaction',

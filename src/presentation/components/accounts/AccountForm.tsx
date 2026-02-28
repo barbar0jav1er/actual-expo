@@ -16,19 +16,21 @@ import { useTheme } from '@/hooks/use-theme'
 interface AccountFormProps {
   visible: boolean
   onClose: () => void
-  onSubmit: (data: { name: string; offbudget: boolean }) => Promise<void>
+  onSubmit: (data: { name: string; offbudget: boolean; initialBalance: number }) => Promise<void>
 }
 
 export function AccountForm({ visible, onClose, onSubmit }: AccountFormProps) {
   const colors = useTheme()
   const [name, setName] = useState('')
   const [offbudget, setOffbudget] = useState(false)
+  const [initialBalance, setInitialBalance] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   function reset() {
     setName('')
     setOffbudget(false)
+    setInitialBalance('')
     setError(null)
   }
 
@@ -45,7 +47,8 @@ export function AccountForm({ visible, onClose, onSubmit }: AccountFormProps) {
     setLoading(true)
     setError(null)
     try {
-      await onSubmit({ name: name.trim(), offbudget })
+      const cents = Math.round(parseFloat(initialBalance || '0') * 100) || 0
+      await onSubmit({ name: name.trim(), offbudget, initialBalance: cents })
       reset()
       onClose()
     } catch (err) {
@@ -104,6 +107,25 @@ export function AccountForm({ visible, onClose, onSubmit }: AccountFormProps) {
               thumbColor="#ffffff"
             />
           </View>
+
+          <Text style={[styles.label, { color: colors.textSubdued, marginTop: 16 }]}>Initial Balance</Text>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.cardBackground,
+                color: colors.textPrimary,
+                borderColor: colors.separator,
+              },
+            ]}
+            value={initialBalance}
+            onChangeText={setInitialBalance}
+            placeholder="0.00"
+            placeholderTextColor={colors.textSubdued}
+            keyboardType="decimal-pad"
+            returnKeyType="done"
+            onSubmitEditing={handleSubmit}
+          />
 
           <Button onPress={handleSubmit} loading={loading} size="lg" style={{ marginTop: 24 }}>
             Create Account

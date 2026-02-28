@@ -13,9 +13,14 @@ interface SyncActions {
 }
 
 let fullSyncUseCase: FullSync
+let refreshStores: (() => Promise<void>) | null = null
 
 export function initializeSyncStore(fullSync: FullSync) {
   fullSyncUseCase = fullSync
+}
+
+export function setSyncRefreshCallback(fn: () => Promise<void>) {
+  refreshStores = fn
 }
 
 export const useSyncStore = create<SyncState & SyncActions>((set) => ({
@@ -34,6 +39,7 @@ export const useSyncStore = create<SyncState & SyncActions>((set) => ({
     set({ isSyncing: true, error: null })
     try {
       await fullSyncUseCase.execute()
+      if (refreshStores) await refreshStores()
       set({ isSyncing: false, lastSyncAt: new Date() })
     } catch (err) {
       set({

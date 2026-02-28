@@ -83,7 +83,11 @@ export class FullSync {
       messagesReceivedCount += newMessages.length
 
       if (newMessages.length > 0) {
-        // Save them first so they are in the DB
+        // Apply changes to domain entities FIRST
+        // If this throws, messages are NOT saved so next sync will retry them
+        await this.applyRemoteChanges.execute({ messages: newMessages })
+
+        // Only mark as seen after successful apply
         await this.syncRepo.saveMessages(
           newMessages.map(m => ({
             timestamp: m.timestamp,
@@ -93,9 +97,6 @@ export class FullSync {
             value: m.value,
           }))
         )
-
-        // Apply changes to domain entities
-        await this.applyRemoteChanges.execute({ messages: newMessages })
 
         // Update clock timestamp with new messages (no longer building own Merkle)
         for (const msg of newMessages) {

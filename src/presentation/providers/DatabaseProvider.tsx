@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { AppState } from 'react-native'
 import { createDatabase } from '@infrastructure/persistence/sqlite/database'
 import { runMigrations } from '@infrastructure/persistence/sqlite/migrate'
 import {
@@ -23,6 +24,7 @@ import {
   initializeAccountsStore,
   initializeTransactionsStore,
   initializeSyncStore,
+  setSyncRefreshCallback,
   useFileStore,
   useAccountsStore,
   useTransactionsStore,
@@ -76,7 +78,7 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
         const syncService = new CrdtSyncService(clock, syncRepo)
 
         const getAccounts = new GetAccounts(accountRepo, transactionRepo)
-        const createAccount = new CreateAccount(accountRepo, payeeRepo, syncService)
+        const createAccount = new CreateAccount(accountRepo, transactionRepo, payeeRepo, syncService)
         const getTransactions = new GetTransactions(
           transactionRepo,
           accountRepo,
@@ -137,6 +139,7 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
             )
 
             initializeSyncStore(fullSync)
+            setSyncRefreshCallback(refreshAllStores)
           }
         }
 
@@ -168,6 +171,27 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
 
     initialize()
   }, [activeFileId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!isReady) return
+
+    const SYNC_INTERVAL_MS = 5 * 60 * 1000
+
+    const interval = setInterval(() => {
+      void useSyncStore.getState().triggerSync()
+    }, SYNC_INTERVAL_MS)
+
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        void useSyncStore.getState().triggerSync()
+      }
+    })
+
+    return () => {
+      clearInterval(interval)
+      subscription.remove()
+    }
+  }, [isReady])
 
   if (error) {
     return <LoadingScreen message={`Error: ${error}`} />
