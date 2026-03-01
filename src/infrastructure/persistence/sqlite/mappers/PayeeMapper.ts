@@ -1,27 +1,30 @@
 import { Payee } from '@domain/entities/Payee'
 import { EntityId } from '@domain/value-objects/EntityId'
-import type { payees } from '../schema'
 
-type PayeeRow = typeof payees.$inferSelect
-type PayeeInsert = typeof payees.$inferInsert
+export interface PayeeRow {
+  id: string
+  name: string | null
+  transfer_acct: string | null
+  tombstone: number | null
+}
 
 export class PayeeMapper {
   static toDomain(row: PayeeRow): Payee {
     return Payee.reconstitute({
       id:                EntityId.fromString(row.id),
-      name:              row.name,
-      transferAccountId: row.transferAcct ? EntityId.fromString(row.transferAcct) : undefined,
+      name:              row.name ?? '',
+      transferAccountId: row.transfer_acct ? EntityId.fromString(row.transfer_acct) : undefined,
       tombstone:         row.tombstone === 1,
     })
   }
 
-  static toPersistence(payee: Payee): PayeeInsert {
+  static toPersistence(payee: Payee): PayeeRow {
     const props = payee.toObject()
     return {
-      id:           props.id.toString(),
-      name:         props.name,
-      transferAcct: props.transferAccountId?.toString() ?? null,
-      tombstone:    props.tombstone ? 1 : 0,
+      id:            props.id.toString(),
+      name:          props.name,
+      transfer_acct: props.transferAccountId?.toString() ?? null,
+      tombstone:     props.tombstone ? 1 : 0,
     }
   }
 }

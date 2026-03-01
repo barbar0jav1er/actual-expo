@@ -7,7 +7,7 @@ import {
   type ProtoMessage,
   type ProtoMessageEnvelope,
 } from './generated/sync'
-import type { TrieNode } from '../crdt/MerkleTree'
+import type { TrieNode } from '@loot-core/crdt/merkle'
 
 export interface DecodedMessage {
   timestamp: string

@@ -1,14 +1,15 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { Timestamp } from '@domain/value-objects'
 import { createTestDb } from '@infrastructure/persistence/sqlite/__tests__/createTestDb'
-import { Clock } from '../crdt/Clock'
-import { MerkleTree } from '../crdt/MerkleTree'
-import { SQLiteSyncRepository, type StoredMessage } from './SQLiteSyncRepository'
+import { SQLiteSyncRepository, type StoredMessage, type ClockState } from './SQLiteSyncRepository'
+import type { TrieNode } from '@loot-core/crdt/merkle'
 
 const NODE = 'abc123def4567890'
 const TS1 = '2024-02-26T12:00:00.000Z-0000-abc123def4567890'
 const TS2 = '2024-02-26T12:00:01.000Z-0001-abc123def4567890'
 const TS3 = '2024-02-26T12:00:02.000Z-0002-abc123def4567890'
+
+const emptyTrie = (): TrieNode => ({ hash: 0 })
 
 function makeMsg(timestamp: string, overrides?: Partial<StoredMessage>): StoredMessage {
   return {
@@ -24,9 +25,9 @@ function makeMsg(timestamp: string, overrides?: Partial<StoredMessage>): StoredM
 describe('SQLiteSyncRepository', () => {
   let repo: SQLiteSyncRepository
 
-  beforeEach(() => {
-    const db = createTestDb()
-    repo = new SQLiteSyncRepository(db as any)
+  beforeEach(async () => {
+    const db = await createTestDb()
+    repo = new SQLiteSyncRepository(db)
   })
 
   describe('saveMessage / hasMessage', () => {
@@ -103,55 +104,69 @@ describe('SQLiteSyncRepository', () => {
     })
 
     it('saves and retrieves the clock state', async () => {
-      const clock = Clock.initialize(NODE)
-      clock.send()
-      const state = clock.getState()
+      const state: ClockState = {
+        timestamp: Timestamp.parse(TS1)!,
+        merkle: emptyTrie(),
+        node: NODE,
+      }
 
       await repo.saveClock(state)
       const loaded = await repo.getClock()
 
       expect(loaded).not.toBeNull()
       expect(loaded!.node).toBe(NODE)
-      expect(loaded!.timestamp.toString()).toBe(state.timestamp.toString())
+      expect(loaded!.timestamp.toString()).toBe(TS1)
     })
 
     it('overwrites an existing clock on re-save', async () => {
-      const clock = Clock.initialize(NODE)
-      await repo.saveClock(clock.getState())
+      const state1: ClockState = {
+        timestamp: Timestamp.parse(TS1)!,
+        merkle: emptyTrie(),
+        node: NODE,
+      }
+      await repo.saveClock(state1)
 
-      const ts1 = clock.getTimestamp().toString()
-
-      clock.send()
-      await repo.saveClock(clock.getState())
+      const state2: ClockState = {
+        timestamp: Timestamp.parse(TS2)!,
+        merkle: emptyTrie(),
+        node: NODE,
+      }
+      await repo.saveClock(state2)
 
       const loaded = await repo.getClock()
-      expect(loaded!.timestamp.toString()).not.toBe(ts1)
+      expect(loaded!.timestamp.toString()).toBe(TS2)
     })
 
     it('restores the merkle trie correctly', async () => {
-      const clock = Clock.initialize(NODE)
-      const ts = clock.send()
-      clock.updateMerkle(ts)
-      await repo.saveClock(clock.getState())
+      const nonEmptyTrie: TrieNode = { hash: 42, '0': { hash: 42 } }
+      const state: ClockState = {
+        timestamp: Timestamp.parse(TS1)!,
+        merkle: nonEmptyTrie,
+        node: NODE,
+      }
+      await repo.saveClock(state)
 
       const loaded = await repo.getClock()
-      expect(loaded!.merkle).toEqual(clock.getMerkle())
+      expect(loaded!.merkle).toEqual(nonEmptyTrie)
     })
 
     it('handles clock with empty merkle trie', async () => {
-      const clock = Clock.initialize(NODE)
-      await repo.saveClock(clock.getState())
+      const state: ClockState = {
+        timestamp: Timestamp.parse(TS1)!,
+        merkle: emptyTrie(),
+        node: NODE,
+      }
+      await repo.saveClock(state)
 
       const loaded = await repo.getClock()
-      expect(loaded!.merkle).toEqual(MerkleTree.emptyTrie())
+      expect(loaded!.merkle).toEqual({ hash: 0 })
     })
 
     it('getClock returns null for unparseable timestamp', async () => {
-      // Save raw invalid clock JSON directly via saveMessage workaround is not possible
       // Just verify save/load works for valid state
-      const state = {
+      const state: ClockState = {
         timestamp: Timestamp.parse(TS1)!,
-        merkle: MerkleTree.emptyTrie(),
+        merkle: emptyTrie(),
         node: NODE,
       }
       await repo.saveClock(state)

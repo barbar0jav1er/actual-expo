@@ -1,4 +1,3 @@
-import * as ExpoCrypto from 'expo-crypto'
 import { InvalidEntityIdError } from '../errors'
 
 const UUID_REGEX =
@@ -8,8 +7,8 @@ export class EntityId {
   private constructor(private readonly value: string) {}
 
   static create(): EntityId {
-    const uuid = ExpoCrypto.randomUUID()
-    return new EntityId(uuid)
+    // crypto.randomUUID() is a Web API available in Expo/Hermes (RN 0.71+), Bun, and Node 16+
+    return new EntityId(crypto.randomUUID())
   }
 
   static fromString(id: string): EntityId {

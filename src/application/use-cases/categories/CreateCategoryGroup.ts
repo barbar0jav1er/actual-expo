@@ -31,7 +31,6 @@ export class CreateCategoryGroup {
         table: 'category_groups',
         row: group.id.toString(),
         data: {
-          id: group.id.toString(),
           name: group.name,
           is_income: group.isIncome ? 1 : 0,
           hidden: group.hidden ? 1 : 0,

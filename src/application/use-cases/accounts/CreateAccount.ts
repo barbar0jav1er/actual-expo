@@ -4,6 +4,7 @@ import { Transaction } from '@domain/entities'
 import { Money, TransactionDate } from '@domain/value-objects'
 import { ValidationError } from '@domain/errors'
 import type { AccountRepository } from '@domain/repositories'
+import type { CategoryRepository } from '@domain/repositories'
 import type { PayeeRepository } from '@domain/repositories'
 import type { TransactionRepository } from '@domain/repositories'
 import type { AccountDTO } from '@application/dtos'
@@ -25,6 +26,7 @@ export class CreateAccount {
     private readonly accountRepo: AccountRepository,
     private readonly transactionRepo: TransactionRepository,
     private readonly payeeRepo: PayeeRepository,
+    private readonly categoryRepo: CategoryRepository,
     private readonly syncService: SyncService
   ) {}
 
@@ -82,6 +84,19 @@ export class CreateAccount {
         await this.payeeRepo.save(startingPayee)
       }
 
+      // Mirror Actual's getStartingBalancePayee(): assign the "Starting Balances"
+      // income category (or the first income category found as fallback).
+      // Off-budget accounts get no category (category = null).
+      let startingBalanceCategoryId: string | null = null
+      if (!account.offbudget) {
+        const allCategories = await this.categoryRepo.findAll()
+        const named = allCategories.find(
+          c => c.isIncome && c.name.toLowerCase() === 'starting balances'
+        )
+        const fallback = named ?? allCategories.find(c => c.isIncome) ?? null
+        startingBalanceCategoryId = fallback?.id.toString() ?? null
+      }
+
       const tx = Transaction.create({
         accountId: account.id,
         amount: Money.fromCents(initialBalance),
@@ -112,7 +127,7 @@ export class CreateAccount {
           amount: tx.amount.toCents(),
           date: tx.date.toNumber(),
           description: startingPayee.id.toString(),
-          category: null,
+          category: startingBalanceCategoryId,
           notes: null,
           cleared: 1,
           reconciled: 0,

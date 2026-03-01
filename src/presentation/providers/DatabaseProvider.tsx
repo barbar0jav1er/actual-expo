@@ -3,15 +3,21 @@ import { AppState } from 'react-native'
 import { createDatabase } from '@infrastructure/persistence/sqlite/database'
 import { runMigrations } from '@infrastructure/persistence/sqlite/migrate'
 import {
-  DrizzleAccountRepository,
-  DrizzleTransactionRepository,
-  DrizzleCategoryRepository,
-  DrizzleCategoryGroupRepository,
-  DrizzlePayeeRepository,
+  SqliteAccountRepository,
+  SqliteTransactionRepository,
+  SqliteCategoryRepository,
+  SqliteCategoryGroupRepository,
+  SqlitePayeeRepository,
 } from '@infrastructure/persistence/sqlite/repositories'
-import { DrizzleBudgetRepository } from '@infrastructure/persistence/sqlite/repositories/DrizzleBudgetRepository'
+import { SqliteBudgetRepository } from '@infrastructure/persistence/sqlite/repositories/SqliteBudgetRepository'
 import { SQLiteSyncRepository } from '@infrastructure/sync/repositories/SQLiteSyncRepository'
-import { Clock } from '@infrastructure/sync/crdt/Clock'
+import {
+  getClock,
+  setClock,
+  makeClock,
+  makeClientId,
+  Timestamp as LootCoreTimestamp,
+} from '@loot-core/crdt/timestamp'
 import { CrdtSyncService } from '@application/services'
 import { BudgetCalculationService } from '@application/services/BudgetCalculationService'
 import {
@@ -46,6 +52,7 @@ import {
 } from '@application/use-cases/payees'
 import { SyncEncoder } from '@infrastructure/sync/protobuf/SyncEncoder'
 import { SyncDecoder } from '@infrastructure/sync/protobuf/SyncDecoder'
+import { ExpoSQLiteAdapter } from '@infrastructure/sync/ExpoSQLiteAdapter'
 import { ActualServerClient } from '@infrastructure/api'
 import { SecureTokenStorage } from '@infrastructure/storage'
 import {
@@ -95,23 +102,39 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
         const { db, expoDb } = createDatabase(`${activeFileId}.db`)
         await runMigrations(db)
 
-        const accountRepo = new DrizzleAccountRepository(db)
-        const transactionRepo = new DrizzleTransactionRepository(db)
-        const categoryRepo = new DrizzleCategoryRepository(db)
-        const categoryGroupRepo = new DrizzleCategoryGroupRepository(db)
-        const payeeRepo = new DrizzlePayeeRepository(db)
-        const budgetRepo = new DrizzleBudgetRepository(db)
+        const accountRepo = new SqliteAccountRepository(db)
+        const transactionRepo = new SqliteTransactionRepository(db)
+        const categoryRepo = new SqliteCategoryRepository(db)
+        const categoryGroupRepo = new SqliteCategoryGroupRepository(db)
+        const payeeRepo = new SqlitePayeeRepository(db)
+        const budgetRepo = new SqliteBudgetRepository(db)
 
-        const syncRepo = new SQLiteSyncRepository(db as any)
+        const syncRepo = new SQLiteSyncRepository(db)
 
-        // Bug 6 fix: load persisted clock so nodeId stays consistent across mounts
+        // Initialize the loot-core global HLC clock from persisted state (Phase 1)
+        // This ensures CrdtSyncService can generate timestamps immediately,
+        // even before FullSync runs in Phase 2.
         const savedClockState = await syncRepo.getClock()
-        const clock = savedClockState ? Clock.fromState(savedClockState) : Clock.initialize()
-        const syncService = new CrdtSyncService(clock, syncRepo)
+        if (savedClockState) {
+          setClock(
+            makeClock(
+              new LootCoreTimestamp(
+                savedClockState.timestamp.getMillis(),
+                savedClockState.timestamp.getCounter(),
+                savedClockState.node,
+              ),
+              savedClockState.merkle,
+            ),
+          )
+        } else {
+          setClock(makeClock(new LootCoreTimestamp(0, 0, makeClientId())))
+        }
+
+        const syncService = new CrdtSyncService(syncRepo)
 
         // Account use-cases
         const getAccounts = new GetAccounts(accountRepo, transactionRepo)
-        const createAccount = new CreateAccount(accountRepo, transactionRepo, payeeRepo, syncService)
+        const createAccount = new CreateAccount(accountRepo, transactionRepo, payeeRepo, categoryRepo, syncService)
         const updateAccount = new UpdateAccount(accountRepo, syncService)
         const closeAccount = new CloseAccount(accountRepo, syncService)
 
@@ -193,7 +216,7 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
           }
 
           if (resolvedGroupId) {
-            const applyRemoteChanges = new ApplyRemoteChanges(expoDb)
+            const applyRemoteChanges = new ApplyRemoteChanges(new ExpoSQLiteAdapter(expoDb))
 
             fullSync = new FullSync(
               syncRepo,
@@ -238,7 +261,7 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
   useEffect(() => {
     if (!isReady) return
 
-    const SYNC_INTERVAL_MS = 5 * 60 * 1000
+    const SYNC_INTERVAL_MS = 30 * 1000 // 30 seconds
 
     const interval = setInterval(() => {
       void useSyncStore.getState().triggerSync()

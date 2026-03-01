@@ -1,9 +1,12 @@
-import { eq, gt } from 'drizzle-orm'
 import { Timestamp } from '@domain/value-objects'
-import { messagesCrdt, messagesClock } from '@infrastructure/persistence/sqlite/schema'
-import type { DrizzleDB } from '@infrastructure/persistence/sqlite/types'
-import type { ClockState } from '../crdt/Clock'
-import type { TrieNode } from '../crdt/MerkleTree'
+import type { AppDatabase } from '@infrastructure/persistence/sqlite/db'
+import type { TrieNode } from '@loot-core/crdt/merkle'
+
+export interface ClockState {
+  timestamp: Timestamp
+  merkle: TrieNode
+  node: string
+}
 
 export interface StoredMessage {
   timestamp: string
@@ -23,60 +26,41 @@ export interface SyncRepository {
 }
 
 export class SQLiteSyncRepository implements SyncRepository {
-  constructor(private db: DrizzleDB) {}
+  constructor(private readonly db: AppDatabase) {}
 
   async getMessages(since: string): Promise<StoredMessage[]> {
-    return (this.db as any)
-      .select({
-        timestamp: messagesCrdt.timestamp,
-        dataset: messagesCrdt.dataset,
-        row: messagesCrdt.row,
-        column: messagesCrdt.column,
-        value: messagesCrdt.value,
-      })
-      .from(messagesCrdt)
-      .where(gt(messagesCrdt.timestamp, since))
-      .orderBy(messagesCrdt.timestamp)
-      .all()
+    return this.db.all<StoredMessage>(
+      'SELECT timestamp, dataset, row, column, value FROM messages_crdt WHERE timestamp > ? ORDER BY timestamp',
+      [since],
+    )
   }
 
   async saveMessage(message: StoredMessage): Promise<void> {
-    await (this.db as any)
-      .insert(messagesCrdt)
-      .values({
-        timestamp: message.timestamp,
-        dataset: message.dataset,
-        row: message.row,
-        column: message.column,
-        value: message.value,
-      })
-      .onConflictDoNothing()
+    await this.db.run(
+      `INSERT OR IGNORE INTO messages_crdt (timestamp, dataset, row, column, value)
+       VALUES (?, ?, ?, ?, ?)`,
+      [message.timestamp, message.dataset, message.row, message.column, message.value],
+    )
   }
 
   async saveMessages(messages: StoredMessage[]): Promise<void> {
-    if (messages.length === 0) return
-
     for (const msg of messages) {
       await this.saveMessage(msg)
     }
   }
 
   async hasMessage(timestamp: string): Promise<boolean> {
-    const row = await (this.db as any)
-      .select({ timestamp: messagesCrdt.timestamp })
-      .from(messagesCrdt)
-      .where(eq(messagesCrdt.timestamp, timestamp))
-      .get()
-    return row !== undefined
+    const row = await this.db.first(
+      'SELECT timestamp FROM messages_crdt WHERE timestamp = ?',
+      [timestamp],
+    )
+    return row !== null
   }
 
   async getClock(): Promise<ClockState | null> {
-    const row = await (this.db as any)
-      .select({ clock: messagesClock.clock })
-      .from(messagesClock)
-      .where(eq(messagesClock.id, 1))
-      .get()
-
+    const row = await this.db.first<{ clock: string }>(
+      'SELECT clock FROM messages_clock WHERE id = 1',
+    )
     if (!row) return null
 
     const data = JSON.parse(row.clock) as {
@@ -84,15 +68,10 @@ export class SQLiteSyncRepository implements SyncRepository {
       merkle: TrieNode
       node: string
     }
-
     const ts = Timestamp.parse(data.timestamp)
     if (!ts) return null
 
-    return {
-      timestamp: ts,
-      merkle: data.merkle,
-      node: data.node,
-    }
+    return { timestamp: ts, merkle: data.merkle, node: data.node }
   }
 
   async saveClock(clock: ClockState): Promise<void> {
@@ -101,13 +80,10 @@ export class SQLiteSyncRepository implements SyncRepository {
       merkle: clock.merkle,
       node: clock.node,
     })
-
-    await (this.db as any)
-      .insert(messagesClock)
-      .values({ id: 1, clock: json })
-      .onConflictDoUpdate({
-        target: messagesClock.id,
-        set: { clock: json },
-      })
+    await this.db.run(
+      `INSERT INTO messages_clock (id, clock) VALUES (1, ?)
+       ON CONFLICT(id) DO UPDATE SET clock = excluded.clock`,
+      [json],
+    )
   }
 }

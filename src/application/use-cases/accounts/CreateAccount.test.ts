@@ -1,11 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { CreateAccount } from './CreateAccount'
-import { Account } from '@domain/entities'
+import { Account, Category } from '@domain/entities'
 import { Payee } from '@domain/entities'
 import { Transaction } from '@domain/entities'
 import { EntityId, BudgetMonth, TransactionDate } from '@domain/value-objects'
 import { ValidationError } from '@domain/errors'
 import type { AccountRepository } from '@domain/repositories'
+import type { CategoryRepository } from '@domain/repositories'
 import type { PayeeRepository } from '@domain/repositories'
 import type { TransactionRepository } from '@domain/repositories'
 import type { SyncService, EntityChange } from '@application/services/SyncService'
@@ -131,6 +132,39 @@ class InMemoryTransactionRepository implements TransactionRepository {
   }
 }
 
+class InMemoryCategoryRepository implements CategoryRepository {
+  public categories: Category[] = []
+
+  async findById(id: EntityId): Promise<Category | null> {
+    return this.categories.find(c => c.id.equals(id)) ?? null
+  }
+
+  async findAll(): Promise<Category[]> {
+    return this.categories.filter(c => !c.tombstone)
+  }
+
+  async findActive(): Promise<Category[]> {
+    return this.categories.filter(c => c.isActive)
+  }
+
+  async findByGroup(groupId: EntityId): Promise<Category[]> {
+    return this.categories.filter(c => c.groupId.equals(groupId) && !c.tombstone)
+  }
+
+  async save(category: Category): Promise<void> {
+    const idx = this.categories.findIndex(c => c.id.equals(category.id))
+    if (idx >= 0) {
+      this.categories[idx] = category
+    } else {
+      this.categories.push(category)
+    }
+  }
+
+  async delete(id: EntityId): Promise<void> {
+    this.categories = this.categories.filter(c => !c.id.equals(id))
+  }
+}
+
 class MockSyncService implements SyncService {
   public trackedChanges: EntityChange[] = []
 
@@ -139,19 +173,27 @@ class MockSyncService implements SyncService {
   }
 }
 
+/** Helper — creates a Category with isIncome=true under a throwaway group */
+function makeIncomeCategory(name: string): Category {
+  const groupId = EntityId.create()
+  return Category.create({ name, groupId, isIncome: true })
+}
+
 describe('CreateAccount', () => {
   let useCase: CreateAccount
   let accountRepo: InMemoryAccountRepository
   let transactionRepo: InMemoryTransactionRepository
   let payeeRepo: InMemoryPayeeRepository
+  let categoryRepo: InMemoryCategoryRepository
   let syncService: MockSyncService
 
   beforeEach(() => {
     accountRepo = new InMemoryAccountRepository()
     transactionRepo = new InMemoryTransactionRepository()
     payeeRepo = new InMemoryPayeeRepository()
+    categoryRepo = new InMemoryCategoryRepository()
     syncService = new MockSyncService()
-    useCase = new CreateAccount(accountRepo, transactionRepo, payeeRepo, syncService)
+    useCase = new CreateAccount(accountRepo, transactionRepo, payeeRepo, categoryRepo, syncService)
   })
 
   it('should create an account with a transfer payee', async () => {
@@ -247,6 +289,57 @@ describe('CreateAccount', () => {
     expect(txChange?.data.starting_balance_flag).toBe(1)
     expect(txChange?.data.cleared).toBe(1)
     expect(txChange?.data.amount).toBe(15025)
+    expect(txChange?.data.isParent).toBe(0)
+    expect(txChange?.data.isChild).toBe(0)
+  })
+
+  it('should assign null category when no income categories exist', async () => {
+    await useCase.execute({ name: 'Checking', initialBalance: 10000 })
+
+    const txChange = syncService.trackedChanges.find(c => c.table === 'transactions')
+    expect(txChange?.data.category).toBeNull()
+  })
+
+  it('should assign "Starting Balances" income category when it exists', async () => {
+    const startingBalancesCat = makeIncomeCategory('Starting Balances')
+    await categoryRepo.save(startingBalancesCat)
+
+    await useCase.execute({ name: 'Checking', initialBalance: 10000 })
+
+    const txChange = syncService.trackedChanges.find(c => c.table === 'transactions')
+    expect(txChange?.data.category).toBe(startingBalancesCat.id.toString())
+  })
+
+  it('falls back to the first income category when "Starting Balances" is absent', async () => {
+    const incomeCat = makeIncomeCategory('Ingresos')
+    await categoryRepo.save(incomeCat)
+
+    await useCase.execute({ name: 'Checking', initialBalance: 10000 })
+
+    const txChange = syncService.trackedChanges.find(c => c.table === 'transactions')
+    expect(txChange?.data.category).toBe(incomeCat.id.toString())
+  })
+
+  it('prefers "Starting Balances" over any other income category', async () => {
+    const other = makeIncomeCategory('Salary')
+    const startingBalances = makeIncomeCategory('Starting Balances')
+    await categoryRepo.save(other)
+    await categoryRepo.save(startingBalances)
+
+    await useCase.execute({ name: 'Checking', initialBalance: 10000 })
+
+    const txChange = syncService.trackedChanges.find(c => c.table === 'transactions')
+    expect(txChange?.data.category).toBe(startingBalances.id.toString())
+  })
+
+  it('off-budget account always gets null category on starting balance', async () => {
+    const startingBalances = makeIncomeCategory('Starting Balances')
+    await categoryRepo.save(startingBalances)
+
+    await useCase.execute({ name: 'Savings', offbudget: true, initialBalance: 10000 })
+
+    const txChange = syncService.trackedChanges.find(c => c.table === 'transactions')
+    expect(txChange?.data.category).toBeNull()
   })
 
   it('should not add Starting Balance payee CRDT change when payee already exists', async () => {

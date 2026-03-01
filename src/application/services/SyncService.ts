@@ -1,4 +1,4 @@
-import { Clock } from '@infrastructure/sync/crdt/Clock'
+import { Timestamp } from '@loot-core/crdt/timestamp'
 import { ValueSerializer } from '@infrastructure/sync/ValueSerializer'
 import type { SyncRepository } from '@infrastructure/sync/repositories/SQLiteSyncRepository'
 
@@ -12,11 +12,12 @@ export interface SyncService {
   trackChanges(changes: EntityChange[]): Promise<void>
 }
 
+/**
+ * Generates CRDT messages using the loot-core global HLC clock (Timestamp.send()).
+ * The clock must be initialized before use — FullSync.execute() does this on startup.
+ */
 export class CrdtSyncService implements SyncService {
-  constructor(
-    private readonly clock: Clock,
-    private readonly syncRepo: SyncRepository
-  ) {}
+  constructor(private readonly syncRepo: SyncRepository) {}
 
   async trackChanges(changes: EntityChange[]): Promise<void> {
     const messages: Array<{
@@ -29,7 +30,8 @@ export class CrdtSyncService implements SyncService {
 
     for (const change of changes) {
       for (const [column, value] of Object.entries(change.data)) {
-        const ts = this.clock.send()
+        const ts = Timestamp.send()
+        if (!ts) throw new Error('CRDT clock not initialized — FullSync must run first')
         messages.push({
           timestamp: ts.toString(),
           dataset: change.table,

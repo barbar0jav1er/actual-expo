@@ -1,14 +1,15 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { createTestDb } from '../__tests__/createTestDb'
-import { DrizzleCategoryGroupRepository } from './DrizzleCategoryGroupRepository'
+import { SqliteCategoryGroupRepository } from './SqliteCategoryGroupRepository'
 import { CategoryGroup } from '@domain/entities/CategoryGroup'
+import type { AppDatabase } from '../db'
 
-describe('DrizzleCategoryGroupRepository', () => {
-  let repo: DrizzleCategoryGroupRepository
+describe('SqliteCategoryGroupRepository', () => {
+  let repo: SqliteCategoryGroupRepository
 
-  beforeEach(() => {
-    const db = createTestDb()
-    repo = new DrizzleCategoryGroupRepository(db as any)
+  beforeEach(async () => {
+    const db: AppDatabase = await createTestDb()
+    repo = new SqliteCategoryGroupRepository(db)
   })
 
   it('saves and retrieves a category group', async () => {

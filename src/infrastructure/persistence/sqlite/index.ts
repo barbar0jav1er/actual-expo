@@ -1,6 +1,5 @@
-export * from './schema'
 export * from './mappers'
 export * from './repositories'
-export * from './types'
 export { createDatabase } from './database'
+export type { AppDatabase } from './db'
 export { runMigrations } from './migrate'

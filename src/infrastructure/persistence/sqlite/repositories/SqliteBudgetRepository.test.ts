@@ -1,25 +1,25 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { createTestDb } from '../__tests__/createTestDb'
-import { DrizzleBudgetRepository } from './DrizzleBudgetRepository'
-import { DrizzleCategoryGroupRepository } from './DrizzleCategoryGroupRepository'
-import { DrizzleCategoryRepository } from './DrizzleCategoryRepository'
+import { SqliteBudgetRepository } from './SqliteBudgetRepository'
+import { SqliteCategoryGroupRepository } from './SqliteCategoryGroupRepository'
+import { SqliteCategoryRepository } from './SqliteCategoryRepository'
 import { Budget } from '@domain/entities/Budget'
 import { CategoryGroup } from '@domain/entities/CategoryGroup'
 import { Category } from '@domain/entities/Category'
 import { EntityId, Money, BudgetMonth } from '@domain/value-objects'
+import type { AppDatabase } from '../db'
 
-describe('DrizzleBudgetRepository', () => {
-  let repo: DrizzleBudgetRepository
+describe('SqliteBudgetRepository', () => {
+  let repo: SqliteBudgetRepository
   let categoryId: EntityId
   const month = BudgetMonth.fromString('2024-02')
 
   beforeEach(async () => {
-    const db = createTestDb()
-    repo = new DrizzleBudgetRepository(db as any)
+    const db: AppDatabase = await createTestDb()
+    repo = new SqliteBudgetRepository(db)
 
-    // Create prerequisite category and group (FK constraint)
-    const groupRepo = new DrizzleCategoryGroupRepository(db as any)
-    const catRepo   = new DrizzleCategoryRepository(db as any)
+    const groupRepo = new SqliteCategoryGroupRepository(db)
+    const catRepo   = new SqliteCategoryRepository(db)
 
     const group    = CategoryGroup.create({ name: 'Expenses' })
     const category = Category.create({ name: 'Groceries', groupId: group.id })
@@ -97,7 +97,7 @@ describe('DrizzleBudgetRepository', () => {
 
   it('markMonthCreated is idempotent', async () => {
     await repo.markMonthCreated(month)
-    await repo.markMonthCreated(month) // should not throw
+    await repo.markMonthCreated(month)
     expect(await repo.isMonthCreated(month)).toBe(true)
   })
 })

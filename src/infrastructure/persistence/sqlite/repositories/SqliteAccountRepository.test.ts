@@ -1,14 +1,15 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { createTestDb } from '../__tests__/createTestDb'
-import { DrizzleAccountRepository } from './DrizzleAccountRepository'
+import { SqliteAccountRepository } from './SqliteAccountRepository'
 import { Account } from '@domain/entities/Account'
+import type { AppDatabase } from '../db'
 
-describe('DrizzleAccountRepository', () => {
-  let repo: DrizzleAccountRepository
+describe('SqliteAccountRepository', () => {
+  let repo: SqliteAccountRepository
 
-  beforeEach(() => {
-    const db = createTestDb()
-    repo = new DrizzleAccountRepository(db as any)
+  beforeEach(async () => {
+    const db: AppDatabase = await createTestDb()
+    repo = new SqliteAccountRepository(db)
   })
 
   it('saves and retrieves an account by id', async () => {
@@ -36,8 +37,8 @@ describe('DrizzleAccountRepository', () => {
   })
 
   it('findActive excludes closed and deleted accounts', async () => {
-    const active = Account.create({ name: 'Checking' })
-    const closed = Account.create({ name: 'Savings' })
+    const active  = Account.create({ name: 'Checking' })
+    const closed  = Account.create({ name: 'Savings' })
     const deleted = Account.create({ name: 'Old' })
     closed.close()
     deleted.delete()

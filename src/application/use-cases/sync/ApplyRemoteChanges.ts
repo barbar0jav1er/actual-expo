@@ -1,4 +1,4 @@
-import type { SQLiteDatabase } from 'expo-sqlite'
+import type { RawSQLiteAdapter } from '@infrastructure/sync/RawSQLiteAdapter'
 import { applyMessage } from '@loot-core/sync/apply'
 import { deserializeValue } from '@loot-core/sync/encoder'
 
@@ -11,7 +11,7 @@ export interface RemoteMessage {
 }
 
 export class ApplyRemoteChanges {
-  constructor(private readonly db: SQLiteDatabase) {}
+  constructor(private readonly db: RawSQLiteAdapter) {}
 
   async execute(input: { messages: RemoteMessage[] }): Promise<void> {
     const sorted = [...input.messages].sort((a, b) =>

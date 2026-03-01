@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { FullSync } from './FullSync'
 import { ApplyRemoteChanges } from './ApplyRemoteChanges'
-import { Clock } from '@infrastructure/sync/crdt/Clock'
-import { MerkleTree } from '@infrastructure/sync/crdt/MerkleTree'
-import type { TrieNode } from '@infrastructure/sync/crdt/MerkleTree'
-import type { SyncRepository, StoredMessage } from '@infrastructure/sync/repositories/SQLiteSyncRepository'
-import type { ClockState } from '@infrastructure/sync/crdt/Clock'
+import { Timestamp } from '@domain/value-objects'
+import type { TrieNode } from '@loot-core/crdt/merkle'
+import type { SyncRepository, StoredMessage, ClockState } from '@infrastructure/sync/repositories/SQLiteSyncRepository'
+
+const emptyTrie = (): TrieNode => ({ hash: 0 })
 
 class MockSyncRepository implements SyncRepository {
   public messages: StoredMessage[] = []
@@ -53,14 +53,9 @@ describe('FullSync', () => {
   })
 
   it('should initialize clock if none exists', async () => {
-    const emptyMerkle = MerkleTree.serialize(MerkleTree.emptyTrie())
-
     const mockEncoder = { encode: vi.fn().mockReturnValue(new Uint8Array()) }
     const mockDecoder = {
-      decode: vi.fn().mockReturnValue({
-        messages: [],
-        merkle: MerkleTree.emptyTrie(),
-      }),
+      decode: vi.fn().mockReturnValue({ messages: [], merkle: emptyTrie() }),
     }
     const mockEndpoints = { sync: vi.fn().mockResolvedValue(new Uint8Array()) }
 
@@ -82,10 +77,7 @@ describe('FullSync', () => {
   it('should return zero messages when in sync', async () => {
     const mockEncoder = { encode: vi.fn().mockReturnValue(new Uint8Array()) }
     const mockDecoder = {
-      decode: vi.fn().mockReturnValue({
-        messages: [],
-        merkle: MerkleTree.emptyTrie(),
-      }),
+      decode: vi.fn().mockReturnValue({ messages: [], merkle: emptyTrie() }),
     }
     const mockEndpoints = { sync: vi.fn().mockResolvedValue(new Uint8Array()) }
 
@@ -108,12 +100,15 @@ describe('FullSync', () => {
 
   it('should converge after sending pending local messages to server', async () => {
     // Simulate a previous FullSync: clock saved with emptyTrie (hash=0) so since=epoch
-    const syncClock = Clock.initialize('a1b2c3d4e5f6a7b8')
-    syncRepo.clockState = syncClock.getState()
+    syncRepo.clockState = {
+      timestamp: Timestamp.create(0, 0, 'a1b2c3d4e5f6a7b8'),
+      merkle: emptyTrie(),
+      node: 'a1b2c3d4e5f6a7b8',
+    }
 
-    // Local message created after the last sync (CrdtSyncService saved it but did NOT update DB clock)
+    // Local message created after the last sync (CrdtSyncService saved it)
     const localMessage: StoredMessage = {
-      timestamp: '2026-01-02T10:00:00.000Z-0000-a1b2c3d4e5f6a7b8',
+      timestamp: '2026-01-02T10:00:00.000Z-0000-A1B2C3D4E5F6A7B8',
       dataset: 'accounts',
       row: '00000000-0000-4000-8000-000000000099',
       column: 'name',
@@ -121,7 +116,7 @@ describe('FullSync', () => {
     }
     syncRepo.messages = [localMessage]
 
-    // Server's Merkle after absorbing our message (non-zero, distinct from emptyTrie)
+    // Server's Merkle after absorbing our message
     const serverMerkleAfterSync: TrieNode = { hash: 42 }
 
     const mockEncoder = { encode: vi.fn().mockReturnValue(new Uint8Array()) }
@@ -146,22 +141,17 @@ describe('FullSync', () => {
 
     const result = await fullSync.execute()
 
-    // Must converge in two iterations
     expect(result.success).toBe(true)
-    // Our local message is NOT "new" — we already have it
     expect(result.messagesReceived).toBe(0)
-    // applyRemoteChanges never called (nothing new to apply)
     expect(applyRemoteChanges.execute).not.toHaveBeenCalled()
-    // Two sync requests: iter 1 (send local msg) + iter 2 (confirm convergence)
     expect(mockEndpoints.sync).toHaveBeenCalledTimes(2)
-    // Saved clock Merkle should now be the server's updated Merkle
     expect(syncRepo.clockState?.merkle).toEqual(serverMerkleAfterSync)
   })
 
   it('should call applyRemoteChanges when remote messages received', async () => {
     const remoteMessages = [
       {
-        timestamp: '2024-02-26T12:00:00.000Z-0000-abc123def4567890',
+        timestamp: '2024-02-26T12:00:00.000Z-0000-ABC123DEF4567890',
         dataset: 'accounts',
         row: '00000000-0000-4000-8000-000000000001',
         column: 'name',
@@ -173,8 +163,8 @@ describe('FullSync', () => {
     const mockEncoder = { encode: vi.fn().mockReturnValue(new Uint8Array()) }
     const mockDecoder = {
       decode: vi.fn()
-        .mockReturnValueOnce({ messages: remoteMessages, merkle: MerkleTree.emptyTrie() })
-        .mockReturnValue({ messages: [], merkle: MerkleTree.emptyTrie() }),
+        .mockReturnValueOnce({ messages: remoteMessages, merkle: emptyTrie() })
+        .mockReturnValue({ messages: [], merkle: emptyTrie() }),
     }
     const mockEndpoints = { sync: vi.fn().mockResolvedValue(new Uint8Array()) }
 

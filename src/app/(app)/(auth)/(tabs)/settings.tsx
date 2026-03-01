@@ -3,7 +3,7 @@ import { Button } from "@/presentation/components/common";
 import { useAuthStore, useSyncStore, useFileStore } from "@/presentation/stores";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -11,7 +11,23 @@ export default function SettingsScreen() {
   const colors = useTheme();
   const router = useRouter();
   const { user, serverUrl, logout } = useAuthStore();
-  const { isSyncing, lastSyncAt, error: syncError, triggerSync } = useSyncStore();
+  const { isSyncing, lastSyncAt, error: syncError, nextRetryAt, triggerSync } = useSyncStore();
+
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (!nextRetryAt) {
+      setSecondsLeft(null)
+      return
+    }
+    const update = () => {
+      const s = Math.max(0, Math.round((nextRetryAt.getTime() - Date.now()) / 1000))
+      setSecondsLeft(s)
+    }
+    update()
+    const id = setInterval(update, 1000)
+    return () => clearInterval(id)
+  }, [nextRetryAt])
   const { activeFileId, clearActiveFile } = useFileStore();
 
   const lastSyncLabel = lastSyncAt
@@ -147,7 +163,9 @@ export default function SettingsScreen() {
                 style={[styles.rowValue, { color: "#e53e3e" }]}
                 numberOfLines={2}
               >
-                {syncError}
+                {secondsLeft !== null
+                  ? `${syncError} — retrying in ${secondsLeft}s`
+                  : syncError}
               </Text>
             </View>
           ) : null}

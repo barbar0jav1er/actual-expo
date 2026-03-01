@@ -1,5 +1,2 @@
-export { Timestamp, TimestampOverflowError, ClockDriftError, MAX_COUNTER, MAX_DRIFT } from './Timestamp'
-export { MerkleTree } from './MerkleTree'
-export type { TrieNode } from './MerkleTree'
-export { Clock } from './Clock'
-export type { ClockState } from './Clock'
+// Re-export error types from the domain Timestamp (used by old Clock tests, kept for compat)
+export { TimestampOverflowError, ClockDriftError, MAX_COUNTER, MAX_DRIFT } from './Timestamp'

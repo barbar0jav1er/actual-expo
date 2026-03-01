@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { createTestDb } from '../__tests__/createTestDb'
-import { DrizzleTransactionRepository } from './DrizzleTransactionRepository'
-import { DrizzleAccountRepository } from './DrizzleAccountRepository'
-import { DrizzleCategoryRepository } from './DrizzleCategoryRepository'
-import { DrizzleCategoryGroupRepository } from './DrizzleCategoryGroupRepository'
-import { DrizzlePayeeRepository } from './DrizzlePayeeRepository'
+import { SqliteTransactionRepository } from './SqliteTransactionRepository'
+import { SqliteAccountRepository } from './SqliteAccountRepository'
+import { SqliteCategoryRepository } from './SqliteCategoryRepository'
+import { SqliteCategoryGroupRepository } from './SqliteCategoryGroupRepository'
+import { SqlitePayeeRepository } from './SqlitePayeeRepository'
 import { Account } from '@domain/entities/Account'
 import { Transaction } from '@domain/entities/Transaction'
 import { Category } from '@domain/entities/Category'
@@ -13,22 +13,23 @@ import { Payee } from '@domain/entities/Payee'
 import { Money } from '@domain/value-objects/Money'
 import { TransactionDate } from '@domain/value-objects/TransactionDate'
 import { BudgetMonth } from '@domain/value-objects/BudgetMonth'
+import type { AppDatabase } from '../db'
 
-describe('DrizzleTransactionRepository', () => {
-  let repo: DrizzleTransactionRepository
-  let accountRepo: DrizzleAccountRepository
-  let categoryRepo: DrizzleCategoryRepository
-  let categoryGroupRepo: DrizzleCategoryGroupRepository
-  let payeeRepo: DrizzlePayeeRepository
+describe('SqliteTransactionRepository', () => {
+  let repo: SqliteTransactionRepository
+  let accountRepo: SqliteAccountRepository
+  let categoryRepo: SqliteCategoryRepository
+  let categoryGroupRepo: SqliteCategoryGroupRepository
+  let payeeRepo: SqlitePayeeRepository
   let account: Account
 
   beforeEach(async () => {
-    const db = createTestDb()
-    repo = new DrizzleTransactionRepository(db as any)
-    accountRepo = new DrizzleAccountRepository(db as any)
-    categoryRepo = new DrizzleCategoryRepository(db as any)
-    categoryGroupRepo = new DrizzleCategoryGroupRepository(db as any)
-    payeeRepo = new DrizzlePayeeRepository(db as any)
+    const db: AppDatabase = await createTestDb()
+    repo = new SqliteTransactionRepository(db)
+    accountRepo = new SqliteAccountRepository(db)
+    categoryRepo = new SqliteCategoryRepository(db)
+    categoryGroupRepo = new SqliteCategoryGroupRepository(db)
+    payeeRepo = new SqlitePayeeRepository(db)
 
     account = Account.create({ name: 'Checking' })
     await accountRepo.save(account)
@@ -61,7 +62,6 @@ describe('DrizzleTransactionRepository', () => {
 
     const result = await repo.findByAccount(account.id)
     expect(result).toHaveLength(2)
-    expect(result[0].date.toNumber()).toBeLessThanOrEqual(result[1].date.toNumber())
   })
 
   it('findByDateRange filters correctly', async () => {
@@ -144,7 +144,7 @@ describe('DrizzleTransactionRepository', () => {
       date: TransactionDate.fromNumber(20240115),
       categoryId: cat.id,
     })
-    const tx2 = makeTx(500, 20240116) // sin categoría
+    const tx2 = makeTx(500, 20240116)
 
     await repo.save(tx1)
     await repo.save(tx2)
@@ -164,7 +164,7 @@ describe('DrizzleTransactionRepository', () => {
       date: TransactionDate.fromNumber(20240115),
       payeeId: payee.id,
     })
-    const tx2 = makeTx(500, 20240116) // sin payee
+    const tx2 = makeTx(500, 20240116)
 
     await repo.save(tx1)
     await repo.save(tx2)

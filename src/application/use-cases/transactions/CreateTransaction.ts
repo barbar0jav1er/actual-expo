@@ -71,7 +71,6 @@ export class CreateTransaction {
         table: 'transactions',
         row: tx.id.toString(),
         data: {
-          id: tx.id.toString(),
           acct: tx.accountId.toString(),
           category: tx.categoryId?.toString() ?? null,
           description: tx.payeeId?.toString() ?? null,

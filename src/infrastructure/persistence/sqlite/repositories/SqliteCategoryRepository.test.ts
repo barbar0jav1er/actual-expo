@@ -1,19 +1,20 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { createTestDb } from '../__tests__/createTestDb'
-import { DrizzleCategoryRepository } from './DrizzleCategoryRepository'
-import { DrizzleCategoryGroupRepository } from './DrizzleCategoryGroupRepository'
+import { SqliteCategoryRepository } from './SqliteCategoryRepository'
+import { SqliteCategoryGroupRepository } from './SqliteCategoryGroupRepository'
 import { Category } from '@domain/entities/Category'
 import { CategoryGroup } from '@domain/entities/CategoryGroup'
+import type { AppDatabase } from '../db'
 
-describe('DrizzleCategoryRepository', () => {
-  let repo: DrizzleCategoryRepository
-  let groupRepo: DrizzleCategoryGroupRepository
+describe('SqliteCategoryRepository', () => {
+  let repo: SqliteCategoryRepository
+  let groupRepo: SqliteCategoryGroupRepository
   let group: CategoryGroup
 
   beforeEach(async () => {
-    const db = createTestDb()
-    repo = new DrizzleCategoryRepository(db as any)
-    groupRepo = new DrizzleCategoryGroupRepository(db as any)
+    const db: AppDatabase = await createTestDb()
+    repo = new SqliteCategoryRepository(db)
+    groupRepo = new SqliteCategoryGroupRepository(db)
 
     group = CategoryGroup.create({ name: 'Food' })
     await groupRepo.save(group)

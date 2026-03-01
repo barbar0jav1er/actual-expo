@@ -40,10 +40,11 @@ describe('ApplyRemoteChanges', () => {
       messages: [makeMsg('accounts', 'row-001', 'name', 'S:Checking')],
     })
 
-    expect(db.runSync).toHaveBeenCalledWith(
-      'INSERT INTO "accounts" (id, "name") VALUES (?, ?)',
-      ['row-001', 'Checking'],
-    )
+    // New behaviour: INSERT OR IGNORE with NOT NULL defaults merged with actual value
+    const call = db.runSync.mock.calls[0]
+    expect(call[0]).toContain('INSERT OR IGNORE INTO "accounts"')
+    expect(call[1]).toContain('row-001')
+    expect(call[1]).toContain('Checking')
   })
 
   it('updates an existing row', async () => {
@@ -79,10 +80,11 @@ describe('ApplyRemoteChanges', () => {
       messages: [makeMsg('transactions', 'row-001', 'amount', 'N:5000')],
     })
 
-    expect(db.runSync).toHaveBeenCalledWith(
-      'INSERT INTO "transactions" (id, "amount") VALUES (?, ?)',
-      ['row-001', 5000],
-    )
+    // New behaviour: INSERT OR IGNORE with all NOT NULL defaults; amount overrides the default 0
+    const call = db.runSync.mock.calls[0]
+    expect(call[0]).toContain('INSERT OR IGNORE INTO "transactions"')
+    expect(call[1]).toContain('row-001')
+    expect(call[1]).toContain(5000)
   })
 
   it('skips prefs dataset', async () => {

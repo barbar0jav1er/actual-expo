@@ -1,7 +1,17 @@
 import murmurhash from 'murmurhash'
-import * as ExpoCrypto from 'expo-crypto'
-
+import type { ICryptoProvider } from '@platform/ICryptoProvider'
 import type { TrieNode } from './merkle'
+
+// Default: Web Crypto API — available in Expo/Hermes (RN 0.71+), Bun, Node 16+
+// Override via setCryptoProvider() for environments without the global.
+let _crypto: ICryptoProvider = {
+  randomUUID: () => crypto.randomUUID(),
+  getRandomValues: (arr) => crypto.getRandomValues(arr),
+}
+
+export function setCryptoProvider(provider: ICryptoProvider): void {
+  _crypto = provider
+}
 
 export type Clock = {
   timestamp: MutableTimestamp
@@ -54,8 +64,7 @@ export function deserializeClock(clock: string): Clock {
 }
 
 export function makeClientId() {
-  // loot-core uses uuid; here we use expo-crypto.randomUUID() which has the same shape
-  return ExpoCrypto.randomUUID().replace(/-/g, '').slice(-16)
+  return _crypto.randomUUID().replace(/-/g, '').slice(-16)
 }
 
 const config = {

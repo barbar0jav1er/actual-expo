@@ -9,7 +9,8 @@
       "@domain/*": ["./src/domain/*"],
       "@application/*": ["./src/application/*"],
       "@infrastructure/*": ["./src/infrastructure/*"],
-      "@loot-core/*": ["./src/loot-core/*"]
+      "@loot-core/*": ["./src/loot-core/*"],
+      "@platform/*": ["./src/platform/*"]
     }
   },
   "include": [

@@ -1,18 +1,19 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { createTestDb } from '../__tests__/createTestDb'
-import { DrizzlePayeeRepository } from './DrizzlePayeeRepository'
-import { DrizzleAccountRepository } from './DrizzleAccountRepository'
+import { SqlitePayeeRepository } from './SqlitePayeeRepository'
+import { SqliteAccountRepository } from './SqliteAccountRepository'
 import { Payee } from '@domain/entities/Payee'
 import { Account } from '@domain/entities/Account'
+import type { AppDatabase } from '../db'
 
-describe('DrizzlePayeeRepository', () => {
-  let repo: DrizzlePayeeRepository
-  let accountRepo: DrizzleAccountRepository
+describe('SqlitePayeeRepository', () => {
+  let repo: SqlitePayeeRepository
+  let accountRepo: SqliteAccountRepository
 
-  beforeEach(() => {
-    const db = createTestDb()
-    repo = new DrizzlePayeeRepository(db as any)
-    accountRepo = new DrizzleAccountRepository(db as any)
+  beforeEach(async () => {
+    const db: AppDatabase = await createTestDb()
+    repo = new SqlitePayeeRepository(db)
+    accountRepo = new SqliteAccountRepository(db)
   })
 
   it('saves and retrieves a payee', async () => {

@@ -42,7 +42,6 @@ export class CreateCategory {
         table: 'categories',
         row: category.id.toString(),
         data: {
-          id: category.id.toString(),
           name: category.name,
           cat_group: category.groupId.toString(),
           is_income: category.isIncome ? 1 : 0,

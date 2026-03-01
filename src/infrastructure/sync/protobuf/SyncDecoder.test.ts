@@ -6,7 +6,7 @@ import {
   encodeMessage,
   encodeMessageEnvelope,
 } from './generated/sync'
-import { MerkleTree } from '../crdt/MerkleTree'
+import type { TrieNode } from '@loot-core/crdt/merkle'
 
 const FILE_ID = 'test-file-id'
 const GROUP_ID = 'test-group-id'
@@ -16,7 +16,7 @@ const TIMESTAMP = '2024-02-26T12:00:00.000Z-0000-abc123def4567890'
 describe('SyncDecoder', () => {
   it('decodes a SyncResponse with a merkle tree', () => {
     // Build a fake response buffer manually
-    const merkle = MerkleTree.serialize(MerkleTree.emptyTrie())
+    const merkle = JSON.stringify({ hash: 0 })
     const responseBuffer = encodeSyncRequest({
       messages: [],
       fileId: '',
@@ -31,7 +31,7 @@ describe('SyncDecoder', () => {
     const decoded = decoder.decode(buf)
 
     expect(decoded.messages).toHaveLength(0)
-    expect(decoded.merkle).toEqual(MerkleTree.emptyTrie())
+    expect(decoded.merkle).toEqual({ hash: 0 } satisfies TrieNode)
     void responseBuffer
   })
 
@@ -47,7 +47,7 @@ describe('SyncDecoder', () => {
       isEncrypted: false,
       content: msg,
     })
-    const merkle = MerkleTree.serialize(MerkleTree.emptyTrie())
+    const merkle = JSON.stringify({ hash: 0 })
     const buf = buildSyncResponse([envelope], merkle)
 
     const decoder = new SyncDecoder()
@@ -86,7 +86,7 @@ describe('SyncDecoder', () => {
     expect(encoded.length).toBeGreaterThan(0)
 
     // Verify that a proper response can be decoded
-    const merkle = MerkleTree.serialize(MerkleTree.emptyTrie())
+    const merkle = JSON.stringify({ hash: 0 })
     const responseMsg = encodeMessage({
       dataset: 'accounts',
       row: 'acc-001',
