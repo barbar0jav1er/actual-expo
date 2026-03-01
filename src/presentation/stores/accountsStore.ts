@@ -2,6 +2,8 @@ import { create } from 'zustand'
 import type { AccountDTO } from '@application/dtos'
 import type { GetAccounts } from '@application/use-cases/accounts'
 import type { CreateAccount } from '@application/use-cases/accounts'
+import type { UpdateAccount } from '@application/use-cases/accounts'
+import type { CloseAccount } from '@application/use-cases/accounts'
 import { useSyncStore } from './syncStore'
 
 interface AccountsState {
@@ -14,6 +16,8 @@ interface AccountsState {
 interface AccountsActions {
   fetchAccounts: () => Promise<void>
   createAccount: (name: string, offbudget?: boolean, initialBalance?: number) => Promise<void>
+  updateAccount: (id: string, name?: string, offbudget?: boolean) => Promise<void>
+  closeAccount: (id: string, reopen?: boolean) => Promise<void>
   selectAccount: (id: string | null) => void
   getTotalBalance: () => number
 }
@@ -21,6 +25,8 @@ interface AccountsActions {
 interface AccountsStoreInternal extends AccountsState, AccountsActions {
   _getAccounts: GetAccounts | null
   _createAccount: CreateAccount | null
+  _updateAccount: UpdateAccount | null
+  _closeAccount: CloseAccount | null
 }
 
 export const useAccountsStore = create<AccountsStoreInternal>((set, get) => ({
@@ -30,6 +36,8 @@ export const useAccountsStore = create<AccountsStoreInternal>((set, get) => ({
   selectedAccountId: null,
   _getAccounts: null,
   _createAccount: null,
+  _updateAccount: null,
+  _closeAccount: null,
 
   fetchAccounts: async () => {
     const { _getAccounts } = get()
@@ -63,6 +71,32 @@ export const useAccountsStore = create<AccountsStoreInternal>((set, get) => ({
     }
   },
 
+  updateAccount: async (id: string, name?: string, offbudget?: boolean) => {
+    const { _updateAccount, fetchAccounts } = get()
+    if (!_updateAccount) return
+    try {
+      await _updateAccount.execute({ id, name, offbudget })
+      await fetchAccounts()
+      void useSyncStore.getState().triggerSync()
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Failed to update account' })
+      throw err
+    }
+  },
+
+  closeAccount: async (id: string, reopen = false) => {
+    const { _closeAccount, fetchAccounts } = get()
+    if (!_closeAccount) return
+    try {
+      await _closeAccount.execute({ id, reopen })
+      await fetchAccounts()
+      void useSyncStore.getState().triggerSync()
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Failed to close account' })
+      throw err
+    }
+  },
+
   selectAccount: (id) => set({ selectedAccountId: id }),
 
   getTotalBalance: () => {
@@ -75,10 +109,14 @@ export const useAccountsStore = create<AccountsStoreInternal>((set, get) => ({
 
 export function initializeAccountsStore(
   getAccounts: GetAccounts,
-  createAccount: CreateAccount
+  createAccount: CreateAccount,
+  updateAccount: UpdateAccount,
+  closeAccount: CloseAccount
 ): void {
   useAccountsStore.setState({
     _getAccounts: getAccounts,
     _createAccount: createAccount,
+    _updateAccount: updateAccount,
+    _closeAccount: closeAccount,
   })
 }

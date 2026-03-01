@@ -4,6 +4,8 @@ import {
   BudgetCategoryRow,
   BudgetAmountModal,
   CategoryGroupModal,
+  CategoryEditModal,
+  CategoryGroupEditModal,
 } from '@/presentation/components/budget'
 import { MoneyText } from '@/presentation/components/common'
 import { useTheme } from '@/hooks/use-theme'
@@ -21,6 +23,18 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import type { CategoryBudgetDTO, GroupBudgetDTO } from '@application/dtos/BudgetDTO'
 
 type EditingBudget = { categoryId: string; categoryName: string; current: number } | null
+
+type EditingCategory = {
+  id: string
+  name: string
+  hidden: boolean
+} | null
+
+type EditingGroup = {
+  id: string
+  name: string
+  hidden: boolean
+} | null
 
 function formatMonthLabel(month: string): string {
   const [year, mon] = month.split('-')
@@ -46,11 +60,18 @@ function buildListItems(summary: ReturnType<typeof useBudgetStore.getState>['sum
 
 export default function BudgetScreen() {
   const colors = useTheme()
-  const { summary, month, isLoading, fetchSummary, goToPrevMonth, goToNextMonth, setBudgetAmount, createCategory, createCategoryGroup } =
-    useBudgetStore()
+  const {
+    summary, month, isLoading,
+    fetchSummary, goToPrevMonth, goToNextMonth, setBudgetAmount,
+    createCategory, createCategoryGroup,
+    updateCategory, deleteCategory,
+    updateCategoryGroup, deleteCategoryGroup,
+  } = useBudgetStore()
 
   const [editing, setEditing] = useState<EditingBudget>(null)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [editingCategory, setEditingCategory] = useState<EditingCategory>(null)
+  const [editingGroup, setEditingGroup] = useState<EditingGroup>(null)
 
   useEffect(() => {
     fetchSummary()
@@ -64,6 +85,14 @@ export default function BudgetScreen() {
     const cat = summary?.groups.flatMap(g => g.categories).find(c => c.categoryId === categoryId)
     if (!cat) return
     setEditing({ categoryId, categoryName: cat.categoryName, current: currentBudgeted })
+  }
+
+  function handleOpenEditCategory(cat: CategoryBudgetDTO) {
+    setEditingCategory({ id: cat.categoryId, name: cat.categoryName, hidden: false })
+  }
+
+  function handleOpenEditGroup(group: GroupBudgetDTO) {
+    setEditingGroup({ id: group.groupId, name: group.groupName, hidden: false })
   }
 
   return (
@@ -117,14 +146,20 @@ export default function BudgetScreen() {
         }}
         renderItem={({ item }) => {
           if (item.type === 'group') {
-            return <BudgetGroupRow group={item.group} isIncome={false} />
+            return (
+              <BudgetGroupRow
+                group={item.group}
+                isIncome={false}
+                onEdit={() => handleOpenEditGroup(item.group)}
+              />
+            )
           }
-          // category
           return (
             <BudgetCategoryRow
               category={item.category}
               isIncome={false}
               onEditBudget={handleEditBudget}
+              onEdit={() => handleOpenEditCategory(item.category)}
             />
           )
         }}
@@ -163,7 +198,7 @@ export default function BudgetScreen() {
         <Ionicons name="add" size={28} color="#ffffff" />
       </Pressable>
 
-      {/* Edit budget modal */}
+      {/* Edit budget amount modal */}
       <BudgetAmountModal
         visible={editing !== null}
         categoryName={editing?.categoryName ?? ''}
@@ -181,6 +216,36 @@ export default function BudgetScreen() {
         onCreateGroup={createCategoryGroup}
         onCreateCategory={createCategory}
         onClose={() => setShowAddModal(false)}
+      />
+
+      {/* Edit category modal */}
+      <CategoryEditModal
+        visible={editingCategory !== null}
+        categoryId={editingCategory?.id ?? ''}
+        categoryName={editingCategory?.name ?? ''}
+        isHidden={editingCategory?.hidden ?? false}
+        onSave={async (id, name, hidden) => {
+          await updateCategory(id, name, hidden)
+        }}
+        onDelete={async (id) => {
+          await deleteCategory(id)
+        }}
+        onClose={() => setEditingCategory(null)}
+      />
+
+      {/* Edit group modal */}
+      <CategoryGroupEditModal
+        visible={editingGroup !== null}
+        groupId={editingGroup?.id ?? ''}
+        groupName={editingGroup?.name ?? ''}
+        isHidden={editingGroup?.hidden ?? false}
+        onSave={async (id, name, hidden) => {
+          await updateCategoryGroup(id, name, hidden)
+        }}
+        onDelete={async (id) => {
+          await deleteCategoryGroup(id)
+        }}
+        onClose={() => setEditingGroup(null)}
       />
     </SafeAreaView>
   )

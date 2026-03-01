@@ -4,3 +4,4 @@ export { useTransactionsStore, initializeTransactionsStore } from './transaction
 export { useSyncStore, initializeSyncStore, setSyncRefreshCallback } from './syncStore'
 export { useFileStore } from './fileStore'
 export { useBudgetStore, initializeBudgetStore } from './budgetStore'
+export { usePayeesStore, initializePayeesStore } from './payeesStore'

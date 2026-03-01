@@ -14,11 +14,36 @@ import { SQLiteSyncRepository } from '@infrastructure/sync/repositories/SQLiteSy
 import { Clock } from '@infrastructure/sync/crdt/Clock'
 import { CrdtSyncService } from '@application/services'
 import { BudgetCalculationService } from '@application/services/BudgetCalculationService'
-import { GetAccounts, CreateAccount } from '@application/use-cases/accounts'
-import { GetTransactions, CreateTransaction } from '@application/use-cases/transactions'
-import { GetCategories, CreateCategory, CreateCategoryGroup } from '@application/use-cases/categories'
+import {
+  GetAccounts,
+  CreateAccount,
+  UpdateAccount,
+  CloseAccount,
+} from '@application/use-cases/accounts'
+import {
+  GetTransactions,
+  CreateTransaction,
+  UpdateTransaction,
+  DeleteTransaction,
+} from '@application/use-cases/transactions'
+import {
+  GetCategories,
+  CreateCategory,
+  CreateCategoryGroup,
+  UpdateCategory,
+  DeleteCategory,
+  UpdateCategoryGroup,
+  DeleteCategoryGroup,
+} from '@application/use-cases/categories'
 import { GetBudgetSummary, SetBudgetAmount } from '@application/use-cases/budget'
 import { FullSync, ApplyRemoteChanges } from '@application/use-cases/sync'
+import {
+  GetPayees,
+  CreatePayee,
+  UpdatePayee,
+  DeletePayee,
+  MergePayees,
+} from '@application/use-cases/payees'
 import { SyncEncoder } from '@infrastructure/sync/protobuf/SyncEncoder'
 import { SyncDecoder } from '@infrastructure/sync/protobuf/SyncDecoder'
 import { ActualServerClient } from '@infrastructure/api'
@@ -28,6 +53,7 @@ import {
   initializeTransactionsStore,
   initializeSyncStore,
   initializeBudgetStore,
+  initializePayeesStore,
   setSyncRefreshCallback,
   useFileStore,
   useAccountsStore,
@@ -83,8 +109,13 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
         const clock = savedClockState ? Clock.fromState(savedClockState) : Clock.initialize()
         const syncService = new CrdtSyncService(clock, syncRepo)
 
+        // Account use-cases
         const getAccounts = new GetAccounts(accountRepo, transactionRepo)
         const createAccount = new CreateAccount(accountRepo, transactionRepo, payeeRepo, syncService)
+        const updateAccount = new UpdateAccount(accountRepo, syncService)
+        const closeAccount = new CloseAccount(accountRepo, syncService)
+
+        // Transaction use-cases
         const getTransactions = new GetTransactions(
           transactionRepo,
           accountRepo,
@@ -98,17 +129,45 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
           payeeRepo,
           syncService
         )
+        const updateTransaction = new UpdateTransaction(
+          transactionRepo,
+          accountRepo,
+          categoryRepo,
+          payeeRepo,
+          syncService
+        )
+        const deleteTransaction = new DeleteTransaction(transactionRepo, syncService)
 
-        initializeAccountsStore(getAccounts, createAccount)
-        initializeTransactionsStore(getTransactions, createTransaction)
-
-        const calcService = new BudgetCalculationService()
-        const getBudgetSummary = new GetBudgetSummary(budgetRepo, categoryRepo, categoryGroupRepo, transactionRepo, calcService)
-        const setBudgetAmount = new SetBudgetAmount(budgetRepo, syncService)
+        // Category use-cases
         const getCategories = new GetCategories(categoryRepo, categoryGroupRepo)
         const createCategory = new CreateCategory(categoryRepo, categoryGroupRepo, syncService)
         const createCategoryGroup = new CreateCategoryGroup(categoryGroupRepo, syncService)
-        initializeBudgetStore(getCategories, createCategory, createCategoryGroup, getBudgetSummary, setBudgetAmount)
+        const updateCategory = new UpdateCategory(categoryRepo, categoryGroupRepo, syncService)
+        const deleteCategory = new DeleteCategory(categoryRepo, syncService)
+        const updateCategoryGroup = new UpdateCategoryGroup(categoryGroupRepo, syncService)
+        const deleteCategoryGroup = new DeleteCategoryGroup(categoryGroupRepo, syncService)
+
+        // Budget use-cases
+        const calcService = new BudgetCalculationService()
+        const getBudgetSummary = new GetBudgetSummary(budgetRepo, categoryRepo, categoryGroupRepo, transactionRepo, calcService)
+        const setBudgetAmount = new SetBudgetAmount(budgetRepo, syncService)
+
+        // Payee use-cases
+        const getPayees = new GetPayees(payeeRepo)
+        const createPayee = new CreatePayee(payeeRepo, syncService)
+        const updatePayee = new UpdatePayee(payeeRepo, syncService)
+        const deletePayee = new DeletePayee(payeeRepo, syncService)
+        const mergePayees = new MergePayees(payeeRepo, transactionRepo, syncService)
+
+        // Initialize stores
+        initializeAccountsStore(getAccounts, createAccount, updateAccount, closeAccount)
+        initializeTransactionsStore(getTransactions, createTransaction, updateTransaction, deleteTransaction)
+        initializeBudgetStore(
+          getCategories, createCategory, createCategoryGroup,
+          getBudgetSummary, setBudgetAmount,
+          updateCategory, deleteCategory, updateCategoryGroup, deleteCategoryGroup
+        )
+        initializePayeesStore(getPayees, createPayee, updatePayee, deletePayee, mergePayees)
 
         // Setup FullSync if server credentials are available
         const serverUrl = await storage.getServerUrl()

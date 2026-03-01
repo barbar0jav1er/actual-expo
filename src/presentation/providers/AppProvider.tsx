@@ -1,5 +1,6 @@
 import React from 'react'
-import { DatabaseProvider } from './DatabaseProvider'
+import { StyleSheet } from 'react-native'
+import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { AuthProvider } from './AuthProvider'
 
 interface AppProviderProps {
@@ -8,6 +9,12 @@ interface AppProviderProps {
 
 export function AppProvider({ children }: AppProviderProps) {
   return (
-    <AuthProvider>{children}</AuthProvider>
+    <GestureHandlerRootView style={styles.root}>
+      <AuthProvider>{children}</AuthProvider>
+    </GestureHandlerRootView>
   )
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+})

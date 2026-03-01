@@ -3,12 +3,15 @@ import { AccountForm, AccountList } from "@/presentation/components/accounts";
 import { MoneyText } from "@/presentation/components/common";
 import { useAccountsStore } from "@/presentation/stores";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import type { AccountDTO } from "@application/dtos";
 
 export default function AccountsScreen() {
   const colors = useTheme();
+  const router = useRouter();
   const { accounts, isLoading, fetchAccounts, createAccount, getTotalBalance } =
     useAccountsStore();
   const [showForm, setShowForm] = useState(false);
@@ -18,6 +21,10 @@ export default function AccountsScreen() {
   }, []);
 
   const totalBalance = getTotalBalance();
+
+  function handleAccountPress(account: AccountDTO) {
+    router.push(`/account/${account.id}`);
+  }
 
   return (
     <SafeAreaView
@@ -39,6 +46,7 @@ export default function AccountsScreen() {
         accounts={accounts}
         refreshing={isLoading}
         onRefresh={fetchAccounts}
+        onAccountPress={handleAccountPress}
         onAddAccount={() => setShowForm(true)}
       />
 

@@ -1,5 +1,6 @@
 import React from 'react'
-import { View, Text, StyleSheet } from 'react-native'
+import { Pressable, View, Text, StyleSheet } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import type { GroupBudgetDTO } from '@application/dtos/BudgetDTO'
 import { MoneyText } from '../common/MoneyText'
 import { useTheme } from '@/hooks/use-theme'
@@ -7,9 +8,10 @@ import { useTheme } from '@/hooks/use-theme'
 interface BudgetGroupRowProps {
   group: GroupBudgetDTO
   isIncome: boolean
+  onEdit?: () => void
 }
 
-export function BudgetGroupRow({ group, isIncome }: BudgetGroupRowProps) {
+export function BudgetGroupRow({ group, isIncome, onEdit }: BudgetGroupRowProps) {
   const colors = useTheme()
 
   return (
@@ -27,6 +29,11 @@ export function BudgetGroupRow({ group, isIncome }: BudgetGroupRowProps) {
           <MoneyText cents={-group.spent} colorize={false} style={[styles.colText, { color: colors.textSubdued }]} />
           <MoneyText cents={group.available} colorize={false} style={[styles.colText, { color: colors.textSubdued }]} />
         </View>
+      )}
+      {onEdit && (
+        <Pressable onPress={onEdit} style={styles.editBtn} hitSlop={8}>
+          <Ionicons name="ellipsis-horizontal" size={16} color={colors.textSubdued} />
+        </Pressable>
       )}
     </View>
   )
@@ -58,5 +65,8 @@ const styles = StyleSheet.create({
   },
   incomeTotal: {
     flexDirection: 'row',
+  },
+  editBtn: {
+    paddingLeft: 8,
   },
 })

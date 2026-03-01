@@ -17,6 +17,7 @@ import { useAccountsStore } from '../../stores'
 interface TransactionFormProps {
   visible: boolean
   onClose: () => void
+  initialAccountId?: string
   onSubmit: (data: {
     accountId: string
     amount: number
@@ -33,13 +34,13 @@ function todayString(): string {
   return `${y}-${m}-${day}`
 }
 
-export function TransactionForm({ visible, onClose, onSubmit }: TransactionFormProps) {
+export function TransactionForm({ visible, onClose, initialAccountId, onSubmit }: TransactionFormProps) {
   const colors = useTheme()
   const accounts = useAccountsStore((s) => s.accounts)
 
   const [amountText, setAmountText] = useState('')
   const [date, setDate] = useState(todayString)
-  const [accountId, setAccountId] = useState('')
+  const [accountId, setAccountId] = useState(initialAccountId ?? '')
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -47,7 +48,7 @@ export function TransactionForm({ visible, onClose, onSubmit }: TransactionFormP
   function reset() {
     setAmountText('')
     setDate(todayString())
-    setAccountId('')
+    setAccountId(initialAccountId ?? '')
     setNotes('')
     setError(null)
   }

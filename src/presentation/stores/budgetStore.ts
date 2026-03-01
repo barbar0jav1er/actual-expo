@@ -3,6 +3,10 @@ import type { MonthBudgetSummaryDTO } from '@application/dtos/BudgetDTO'
 import type { GetCategories } from '@application/use-cases/categories/GetCategories'
 import type { CreateCategory } from '@application/use-cases/categories/CreateCategory'
 import type { CreateCategoryGroup } from '@application/use-cases/categories/CreateCategoryGroup'
+import type { UpdateCategory } from '@application/use-cases/categories/UpdateCategory'
+import type { DeleteCategory } from '@application/use-cases/categories/DeleteCategory'
+import type { UpdateCategoryGroup } from '@application/use-cases/categories/UpdateCategoryGroup'
+import type { DeleteCategoryGroup } from '@application/use-cases/categories/DeleteCategoryGroup'
 import type { GetBudgetSummary } from '@application/use-cases/budget/GetBudgetSummary'
 import type { SetBudgetAmount } from '@application/use-cases/budget/SetBudgetAmount'
 import { BudgetMonth } from '@domain/value-objects'
@@ -22,6 +26,10 @@ interface BudgetActions {
   goToNextMonth: () => Promise<void>
   createCategory: (name: string, groupId: string) => Promise<void>
   createCategoryGroup: (name: string, isIncome?: boolean) => Promise<void>
+  updateCategory: (id: string, name?: string, hidden?: boolean) => Promise<void>
+  deleteCategory: (id: string) => Promise<void>
+  updateCategoryGroup: (id: string, name?: string, hidden?: boolean) => Promise<void>
+  deleteCategoryGroup: (id: string) => Promise<void>
 }
 
 interface BudgetStoreInternal extends BudgetState, BudgetActions {
@@ -30,6 +38,10 @@ interface BudgetStoreInternal extends BudgetState, BudgetActions {
   _createCategoryGroup: CreateCategoryGroup | null
   _getBudgetSummary: GetBudgetSummary | null
   _setBudgetAmount: SetBudgetAmount | null
+  _updateCategory: UpdateCategory | null
+  _deleteCategory: DeleteCategory | null
+  _updateCategoryGroup: UpdateCategoryGroup | null
+  _deleteCategoryGroup: DeleteCategoryGroup | null
 }
 
 function currentMonth(): string {
@@ -47,6 +59,10 @@ export const useBudgetStore = create<BudgetStoreInternal>((set, get) => ({
   _createCategoryGroup: null,
   _getBudgetSummary: null,
   _setBudgetAmount: null,
+  _updateCategory: null,
+  _deleteCategory: null,
+  _updateCategoryGroup: null,
+  _deleteCategoryGroup: null,
 
   fetchSummary: async (month?: string) => {
     const { _getBudgetSummary } = get()
@@ -113,6 +129,58 @@ export const useBudgetStore = create<BudgetStoreInternal>((set, get) => ({
       throw err
     }
   },
+
+  updateCategory: async (id: string, name?: string, hidden?: boolean) => {
+    const { _updateCategory, fetchSummary, month } = get()
+    if (!_updateCategory) return
+    try {
+      await _updateCategory.execute({ id, name, hidden })
+      await fetchSummary(month)
+      void useSyncStore.getState().triggerSync()
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Failed to update category' })
+      throw err
+    }
+  },
+
+  deleteCategory: async (id: string) => {
+    const { _deleteCategory, fetchSummary, month } = get()
+    if (!_deleteCategory) return
+    try {
+      await _deleteCategory.execute({ id })
+      await fetchSummary(month)
+      void useSyncStore.getState().triggerSync()
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Failed to delete category' })
+      throw err
+    }
+  },
+
+  updateCategoryGroup: async (id: string, name?: string, hidden?: boolean) => {
+    const { _updateCategoryGroup, fetchSummary, month } = get()
+    if (!_updateCategoryGroup) return
+    try {
+      await _updateCategoryGroup.execute({ id, name, hidden })
+      await fetchSummary(month)
+      void useSyncStore.getState().triggerSync()
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Failed to update category group' })
+      throw err
+    }
+  },
+
+  deleteCategoryGroup: async (id: string) => {
+    const { _deleteCategoryGroup, fetchSummary, month } = get()
+    if (!_deleteCategoryGroup) return
+    try {
+      await _deleteCategoryGroup.execute({ id })
+      await fetchSummary(month)
+      void useSyncStore.getState().triggerSync()
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Failed to delete category group' })
+      throw err
+    }
+  },
 }))
 
 export function initializeBudgetStore(
@@ -120,7 +188,11 @@ export function initializeBudgetStore(
   createCategory: CreateCategory,
   createCategoryGroup: CreateCategoryGroup,
   getBudgetSummary: GetBudgetSummary,
-  setBudgetAmount: SetBudgetAmount
+  setBudgetAmount: SetBudgetAmount,
+  updateCategory: UpdateCategory,
+  deleteCategory: DeleteCategory,
+  updateCategoryGroup: UpdateCategoryGroup,
+  deleteCategoryGroup: DeleteCategoryGroup
 ): void {
   useBudgetStore.setState({
     _getCategories: getCategories,
@@ -128,5 +200,9 @@ export function initializeBudgetStore(
     _createCategoryGroup: createCategoryGroup,
     _getBudgetSummary: getBudgetSummary,
     _setBudgetAmount: setBudgetAmount,
+    _updateCategory: updateCategory,
+    _deleteCategory: deleteCategory,
+    _updateCategoryGroup: updateCategoryGroup,
+    _deleteCategoryGroup: deleteCategoryGroup,
   })
 }

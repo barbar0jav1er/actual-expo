@@ -13,6 +13,10 @@ export default function AuthLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Protected guard={!!activeFileId}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="account/[id]" />
+        <Stack.Screen name="transaction/[id]" />
+        <Stack.Screen name="payees" />
+        <Stack.Screen name="payee/[id]" />
       </Stack.Protected>
       <Stack.Protected guard={!activeFileId}>
         <Stack.Screen name="select-file" />

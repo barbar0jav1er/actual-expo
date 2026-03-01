@@ -1,14 +1,19 @@
 import React, { useEffect, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
+import { useRouter } from 'expo-router'
 import { useTheme } from '@/hooks/use-theme'
-import { TransactionList, TransactionForm } from '@/presentation/components/transactions'
+import { TransactionItem } from '@/presentation/components/transactions/TransactionItem'
+import { TransactionForm } from '@/presentation/components/transactions/TransactionForm'
+import { SwipeableRow, showConfirmDialog } from '@/presentation/components/common'
 import { useTransactionsStore } from '@/presentation/stores'
+import type { TransactionDTO } from '@application/dtos'
 
 export default function TransactionsScreen() {
   const colors = useTheme()
-  const { transactions, isLoading, fetchTransactions, createTransaction, filters } =
+  const router = useRouter()
+  const { transactions, isLoading, fetchTransactions, createTransaction, deleteTransaction, filters } =
     useTransactionsStore()
   const [showForm, setShowForm] = useState(false)
 
@@ -20,6 +25,16 @@ export default function TransactionsScreen() {
     ? new Date(`${filters.month}-01`).toLocaleString('en-US', { month: 'long', year: 'numeric' })
     : 'All Transactions'
 
+  function handleDeleteTransaction(tx: TransactionDTO) {
+    showConfirmDialog({
+      title: 'Delete Transaction',
+      message: 'This transaction will be permanently deleted.',
+      confirmLabel: 'Delete',
+      destructive: true,
+      onConfirm: () => deleteTransaction(tx.id),
+    })
+  }
+
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.pageBackground }]} edges={['top']}>
       {/* Filter bar */}
@@ -27,11 +42,35 @@ export default function TransactionsScreen() {
         <Text style={[styles.monthLabel, { color: colors.textPrimary }]}>{monthLabel}</Text>
       </View>
 
-      {/* Transaction list */}
-      <TransactionList
-        transactions={transactions}
+      {/* Transaction list with swipe-to-delete */}
+      <FlatList
+        data={transactions}
+        keyExtractor={item => item.id}
         refreshing={isLoading}
         onRefresh={fetchTransactions}
+        refreshControl={
+          <RefreshControl refreshing={isLoading} onRefresh={fetchTransactions} tintColor={colors.primary} colors={[colors.primary]} />
+        }
+        renderItem={({ item }) => (
+          <SwipeableRow
+            onDelete={() => handleDeleteTransaction(item)}
+            onEdit={() => router.push(`/transaction/${item.id}`)}
+          >
+            <TransactionItem
+              transaction={item}
+              onPress={() => router.push(`/transaction/${item.id}`)}
+            />
+          </SwipeableRow>
+        )}
+        contentContainerStyle={[styles.listContent, { backgroundColor: colors.cardBackground }]}
+        ListEmptyComponent={
+          <View style={styles.empty}>
+            <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>No transactions</Text>
+            <Text style={[styles.emptySubtitle, { color: colors.textSubdued }]}>
+              Transactions for this period will appear here
+            </Text>
+          </View>
+        }
       />
 
       {/* FAB */}
@@ -63,6 +102,17 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   monthLabel: { fontSize: 17, fontWeight: '600' },
+  listContent: { paddingBottom: 100 },
+  empty: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+    gap: 8,
+    paddingTop: 60,
+  },
+  emptyTitle: { fontSize: 17, fontWeight: '600' },
+  emptySubtitle: { fontSize: 14, textAlign: 'center' },
   fab: {
     position: 'absolute',
     bottom: 24,

@@ -1,5 +1,6 @@
 import React from 'react'
 import { View, Text, StyleSheet, Pressable } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import type { CategoryBudgetDTO } from '@application/dtos/BudgetDTO'
 import { MoneyText } from '../common/MoneyText'
 import { useTheme } from '@/hooks/use-theme'
@@ -8,9 +9,10 @@ interface BudgetCategoryRowProps {
   category: CategoryBudgetDTO
   isIncome: boolean
   onEditBudget?: (categoryId: string, currentBudgeted: number) => void
+  onEdit?: () => void
 }
 
-export function BudgetCategoryRow({ category, isIncome, onEditBudget }: BudgetCategoryRowProps) {
+export function BudgetCategoryRow({ category, isIncome, onEditBudget, onEdit }: BudgetCategoryRowProps) {
   const colors = useTheme()
 
   const availableColor =
@@ -56,6 +58,12 @@ export function BudgetCategoryRow({ category, isIncome, onEditBudget }: BudgetCa
           </Text>
         </View>
       )}
+
+      {onEdit && (
+        <Pressable onPress={onEdit} style={styles.editBtn} hitSlop={8}>
+          <Ionicons name="ellipsis-horizontal" size={16} color={colors.textSubdued} />
+        </Pressable>
+      )}
     </View>
   )
 }
@@ -91,5 +99,8 @@ const styles = StyleSheet.create({
   budgetCell: {
     width: 64,
     alignItems: 'flex-end',
+  },
+  editBtn: {
+    paddingLeft: 8,
   },
 })

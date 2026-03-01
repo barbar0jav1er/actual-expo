@@ -1,12 +1,15 @@
 import { useTheme } from "@/hooks/use-theme";
 import { Button } from "@/presentation/components/common";
 import { useAuthStore, useSyncStore, useFileStore } from "@/presentation/stores";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import React from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function SettingsScreen() {
   const colors = useTheme();
+  const router = useRouter();
   const { user, serverUrl, logout } = useAuthStore();
   const { isSyncing, lastSyncAt, error: syncError, triggerSync } = useSyncStore();
   const { activeFileId, clearActiveFile } = useFileStore();
@@ -87,6 +90,31 @@ export default function SettingsScreen() {
               Change Budget
             </Button>
           </View>
+        </View>
+
+        {/* Data */}
+        <View
+          style={[
+            styles.section,
+            {
+              backgroundColor: colors.cardBackground,
+              borderColor: colors.separator,
+            },
+          ]}
+        >
+          <Text style={[styles.sectionTitle, { color: colors.textSubdued }]}>
+            Data
+          </Text>
+          <Pressable
+            style={({ pressed }) => [
+              styles.row,
+              { borderBottomColor: colors.separator, opacity: pressed ? 0.7 : 1 },
+            ]}
+            onPress={() => router.push('/payees')}
+          >
+            <Text style={[styles.rowLabel, { color: colors.textPrimary }]}>Payees</Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.textSubdued} />
+          </Pressable>
         </View>
 
         {/* Sync */}
