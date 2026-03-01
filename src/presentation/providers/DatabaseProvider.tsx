@@ -66,7 +66,7 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
       let fullSync: FullSync | null = null
 
       try {
-        const db = createDatabase(`${activeFileId}.db`)
+        const { db, expoDb } = createDatabase(`${activeFileId}.db`)
         await runMigrations(db)
 
         const accountRepo = new DrizzleAccountRepository(db)
@@ -134,14 +134,7 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
           }
 
           if (resolvedGroupId) {
-            const applyRemoteChanges = new ApplyRemoteChanges(
-              accountRepo,
-              transactionRepo,
-              categoryRepo,
-              categoryGroupRepo,
-              payeeRepo,
-              budgetRepo
-            )
+            const applyRemoteChanges = new ApplyRemoteChanges(expoDb)
 
             fullSync = new FullSync(
               syncRepo,

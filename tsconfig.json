@@ -8,7 +8,8 @@
       "@/assets/*": ["./assets/*"],
       "@domain/*": ["./src/domain/*"],
       "@application/*": ["./src/application/*"],
-      "@infrastructure/*": ["./src/infrastructure/*"]
+      "@infrastructure/*": ["./src/infrastructure/*"],
+      "@loot-core/*": ["./src/loot-core/*"]
     }
   },
   "include": [
