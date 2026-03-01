@@ -16,8 +16,10 @@ export class SqliteCategoryRepository implements CategoryRepository {
   }
 
   async findAll(): Promise<Category[]> {
+    // Exclude rows where cat_group is missing — can happen with partial CRDT
+    // application (row created by one field message before the group message arrives).
     const rows = await this.db.all(
-      'SELECT * FROM categories WHERE tombstone = 0 ORDER BY sort_order, id',
+      "SELECT * FROM categories WHERE tombstone = 0 AND cat_group IS NOT NULL AND cat_group != '' ORDER BY sort_order, id",
     )
     return rows.map(r => CategoryMapper.toDomain(r as any))
   }
@@ -28,7 +30,7 @@ export class SqliteCategoryRepository implements CategoryRepository {
 
   async findByGroup(groupId: EntityId): Promise<Category[]> {
     const rows = await this.db.all(
-      'SELECT * FROM categories WHERE cat_group = ? AND tombstone = 0 ORDER BY sort_order, id',
+      "SELECT * FROM categories WHERE cat_group = ? AND tombstone = 0 AND cat_group != '' ORDER BY sort_order, id",
       [groupId.toString()],
     )
     return rows.map(r => CategoryMapper.toDomain(r as any))

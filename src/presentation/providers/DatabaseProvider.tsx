@@ -12,7 +12,6 @@ import {
 import { SqliteBudgetRepository } from '@infrastructure/persistence/sqlite/repositories/SqliteBudgetRepository'
 import { SQLiteSyncRepository } from '@infrastructure/sync/repositories/SQLiteSyncRepository'
 import {
-  getClock,
   setClock,
   makeClock,
   makeClientId,

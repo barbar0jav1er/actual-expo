@@ -1,17 +1,5 @@
 import murmurhash from 'murmurhash'
-import type { ICryptoProvider } from '@platform/ICryptoProvider'
 import type { TrieNode } from './merkle'
-
-// Default: Web Crypto API — available in Expo/Hermes (RN 0.71+), Bun, Node 16+
-// Override via setCryptoProvider() for environments without the global.
-let _crypto: ICryptoProvider = {
-  randomUUID: () => crypto.randomUUID(),
-  getRandomValues: (arr) => crypto.getRandomValues(arr),
-}
-
-export function setCryptoProvider(provider: ICryptoProvider): void {
-  _crypto = provider
-}
 
 export type Clock = {
   timestamp: MutableTimestamp
@@ -63,8 +51,9 @@ export function deserializeClock(clock: string): Clock {
   }
 }
 
-export function makeClientId() {
-  return _crypto.randomUUID().replace(/-/g, '').slice(-16)
+/** Generates a 16-char hex node ID — pure Math.random(), no platform crypto needed. */
+export function makeClientId(): string {
+  return 'xxxxxxxxxxxxxxxx'.replace(/x/g, () => ((Math.random() * 16) | 0).toString(16))
 }
 
 const config = {

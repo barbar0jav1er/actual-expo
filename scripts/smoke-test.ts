@@ -44,13 +44,11 @@ class BunSQLiteAdapter implements RawSQLiteAdapter {
 
 // ─── App imports ──────────────────────────────────────────────────────────────
 import {
-  setCryptoProvider,
   setClock,
   makeClock,
   makeClientId,
   Timestamp as LootCoreTimestamp,
 } from '@loot-core/crdt/timestamp'
-import { WebCryptoProvider } from '@platform/WebCryptoProvider'
 
 // Repositories
 import { SqliteAccountRepository }       from '@infrastructure/persistence/sqlite/repositories/SqliteAccountRepository'
@@ -114,8 +112,6 @@ async function main() {
   console.log(`Server: ${SERVER}  |  Date: ${TODAY}\n`)
 
   // ── Phase 0: Setup ──────────────────────────────────────────────────────────
-  setCryptoProvider(new WebCryptoProvider())
-
   const sqlite = new Database(':memory:')
   const db: AppDatabase = new BunDatabase(sqlite)
 
@@ -276,24 +272,38 @@ async function main() {
 
   if (accountId) {
     try {
+      // Pick a non-income category: prefer the one we just created in Phase 5,
+      // otherwise fall back to any expense category from the server sync.
+      let txCategoryId = categoryId
+      let txCategoryName = 'Gastos'
+      if (!txCategoryId) {
+        const { groups } = await getCategories.execute()
+        const fallback = groups.flatMap(g => g.categories).find(c => !c.isIncome)
+        txCategoryId = fallback?.id ?? ''
+        txCategoryName = fallback?.name ?? ''
+      }
+
       const result = await createTransaction.execute({
         accountId,
         amount: -2_300,
         date: TODAY,
-        categoryId: categoryId || undefined,
+        categoryId: txCategoryId || undefined,
         notes: 'nota de prueba',
       })
       txId = result.transaction.id
 
       const { transactions } = await getTransactions.execute({})
       const found = transactions.find(t => t.id === txId)
+      const categoryOk = txCategoryId
+        ? found?.categoryName === txCategoryName
+        : found?.categoryName == null
       if (
         found &&
         found.amount === -2_300 &&
         found.notes === 'nota de prueba' &&
-        found.categoryName === 'Gastos'
+        categoryOk
       ) {
-        pass('TX:CREATE', `$${(found.amount / 100).toFixed(2)}  categoría="${found.categoryName}"  nota="${found.notes}"`)
+        pass('TX:CREATE', `$${(found.amount / 100).toFixed(2)}  categoría="${found.categoryName ?? 'ninguna'}"  nota="${found.notes}"`)
       } else {
         fail('TX:CREATE', new Error(
           `amount=${found?.amount}, categoryName="${found?.categoryName}", notes="${found?.notes}"`

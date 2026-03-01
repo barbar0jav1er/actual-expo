@@ -1,7 +1,7 @@
 import { Account } from '@domain/entities'
 import { Payee } from '@domain/entities'
 import { Transaction } from '@domain/entities'
-import { Money, TransactionDate } from '@domain/value-objects'
+import { EntityId, Money, TransactionDate } from '@domain/value-objects'
 import { ValidationError } from '@domain/errors'
 import type { AccountRepository } from '@domain/repositories'
 import type { CategoryRepository } from '@domain/repositories'
@@ -102,6 +102,9 @@ export class CreateAccount {
         amount: Money.fromCents(initialBalance),
         date: TransactionDate.today(),
         payeeId: startingPayee.id,
+        categoryId: startingBalanceCategoryId
+          ? EntityId.fromString(startingBalanceCategoryId)
+          : undefined,
       })
       tx.clear()
 
