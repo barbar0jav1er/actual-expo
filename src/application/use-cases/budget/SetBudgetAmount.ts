@@ -34,7 +34,6 @@ export class SetBudgetAmount {
       table: 'zero_budgets',
       row:   budget.id.toString(),
       data: {
-        id:        budget.id.toString(),
         month:     budget.month.toNumber(),
         category:  budget.categoryId.toString(),
         amount:    budget.budgeted.toCents(),

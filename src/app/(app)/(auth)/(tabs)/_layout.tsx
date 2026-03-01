@@ -50,6 +50,13 @@ export default function TabsLayout() {
           }}
         />
         <Tabs.Screen
+          name="budget"
+          options={{
+            title: "Budget",
+            tabBarIcon: ({ focused, color }) => tabIcon("calculator", focused, color),
+          }}
+        />
+        <Tabs.Screen
           name="settings"
           options={{
             title: "Settings",

@@ -1,5 +1,6 @@
 import { Account, Transaction, Category, CategoryGroup, Payee } from '@domain/entities'
-import { EntityId, Money, TransactionDate } from '@domain/value-objects'
+import { Budget } from '@domain/entities/Budget'
+import { EntityId, Money, TransactionDate, BudgetMonth } from '@domain/value-objects'
 import { Timestamp } from '@domain/value-objects'
 import { ValueSerializer } from '@infrastructure/sync/ValueSerializer'
 import type {
@@ -8,6 +9,7 @@ import type {
   CategoryRepository,
   CategoryGroupRepository,
   PayeeRepository,
+  BudgetRepository,
 } from '@domain/repositories'
 
 export interface RemoteMessage {
@@ -28,7 +30,8 @@ export class ApplyRemoteChanges {
     private readonly transactionRepo: TransactionRepository,
     private readonly categoryRepo: CategoryRepository,
     private readonly categoryGroupRepo: CategoryGroupRepository,
-    private readonly payeeRepo: PayeeRepository
+    private readonly payeeRepo: PayeeRepository,
+    private readonly budgetRepo: BudgetRepository
   ) {}
 
   async execute(input: ApplyRemoteChangesInput): Promise<void> {
@@ -96,6 +99,9 @@ export class ApplyRemoteChanges {
         break
       case 'payees':
         await this.applyToPayee(rowId, sorted)
+        break
+      case 'zero_budgets':
+        await this.applyToZeroBudget(rowId, sorted)
         break
     }
   }
@@ -318,5 +324,56 @@ export class ApplyRemoteChanges {
     }
 
     await this.payeeRepo.save(payee)
+  }
+
+  private async applyToZeroBudget(rowId: string, messages: RemoteMessage[]): Promise<void> {
+    const id = EntityId.fromString(rowId)
+
+    let month: number | undefined
+    let categoryId: string | undefined
+    let amount: number | undefined
+    let carryover: number | undefined
+    let goal: number | null | undefined
+
+    for (const msg of messages) {
+      const value = ValueSerializer.deserialize(msg.value)
+      switch (msg.column) {
+        case 'month':
+          if (typeof value === 'number') month = value
+          break
+        case 'category':
+          if (typeof value === 'string') categoryId = value
+          break
+        case 'amount':
+          if (typeof value === 'number') amount = value
+          break
+        case 'carryover':
+          if (typeof value === 'number') carryover = value
+          break
+        case 'goal':
+          goal = typeof value === 'number' ? value : null
+          break
+      }
+    }
+
+    let budget = await this.budgetRepo.findById(id)
+
+    if (!budget) {
+      if (month === undefined || !categoryId) return
+      budget = Budget.reconstitute({
+        id,
+        month: BudgetMonth.fromNumber(month),
+        categoryId: EntityId.fromString(categoryId),
+        budgeted: Money.fromCents(amount ?? 0),
+        carryover: Money.fromCents(carryover ?? 0),
+        goal: goal != null ? Money.fromCents(goal) : undefined,
+      })
+    } else {
+      if (amount !== undefined) budget.setBudgeted(Money.fromCents(amount))
+      if (carryover !== undefined) budget.setCarryover(Money.fromCents(carryover))
+      if (goal !== undefined) budget.setGoal(goal != null ? Money.fromCents(goal) : undefined)
+    }
+
+    await this.budgetRepo.save(budget)
   }
 }

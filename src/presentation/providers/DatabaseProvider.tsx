@@ -13,8 +13,11 @@ import { DrizzleBudgetRepository } from '@infrastructure/persistence/sqlite/repo
 import { SQLiteSyncRepository } from '@infrastructure/sync/repositories/SQLiteSyncRepository'
 import { Clock } from '@infrastructure/sync/crdt/Clock'
 import { CrdtSyncService } from '@application/services'
+import { BudgetCalculationService } from '@application/services/BudgetCalculationService'
 import { GetAccounts, CreateAccount } from '@application/use-cases/accounts'
 import { GetTransactions, CreateTransaction } from '@application/use-cases/transactions'
+import { GetCategories, CreateCategory, CreateCategoryGroup } from '@application/use-cases/categories'
+import { GetBudgetSummary, SetBudgetAmount } from '@application/use-cases/budget'
 import { FullSync, ApplyRemoteChanges } from '@application/use-cases/sync'
 import { SyncEncoder } from '@infrastructure/sync/protobuf/SyncEncoder'
 import { SyncDecoder } from '@infrastructure/sync/protobuf/SyncDecoder'
@@ -24,11 +27,13 @@ import {
   initializeAccountsStore,
   initializeTransactionsStore,
   initializeSyncStore,
+  initializeBudgetStore,
   setSyncRefreshCallback,
   useFileStore,
   useAccountsStore,
   useTransactionsStore,
   useSyncStore,
+  useBudgetStore,
 } from '../stores'
 import { LoadingScreen } from '../components/common'
 
@@ -42,6 +47,7 @@ async function refreshAllStores(): Promise<void> {
   await Promise.all([
     useAccountsStore.getState().fetchAccounts(),
     useTransactionsStore.getState().fetchTransactions(),
+    useBudgetStore.getState().fetchSummary(),
   ])
 }
 
@@ -96,6 +102,14 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
         initializeAccountsStore(getAccounts, createAccount)
         initializeTransactionsStore(getTransactions, createTransaction)
 
+        const calcService = new BudgetCalculationService()
+        const getBudgetSummary = new GetBudgetSummary(budgetRepo, categoryRepo, categoryGroupRepo, transactionRepo, calcService)
+        const setBudgetAmount = new SetBudgetAmount(budgetRepo, syncService)
+        const getCategories = new GetCategories(categoryRepo, categoryGroupRepo)
+        const createCategory = new CreateCategory(categoryRepo, categoryGroupRepo, syncService)
+        const createCategoryGroup = new CreateCategoryGroup(categoryGroupRepo, syncService)
+        initializeBudgetStore(getCategories, createCategory, createCategoryGroup, getBudgetSummary, setBudgetAmount)
+
         // Setup FullSync if server credentials are available
         const serverUrl = await storage.getServerUrl()
         const token = await storage.getToken()
@@ -125,7 +139,8 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
               transactionRepo,
               categoryRepo,
               categoryGroupRepo,
-              payeeRepo
+              payeeRepo,
+              budgetRepo
             )
 
             fullSync = new FullSync(
@@ -142,10 +157,6 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
             setSyncRefreshCallback(refreshAllStores)
           }
         }
-
-        // Suppress unused variable warnings — repos available for future use
-        void categoryGroupRepo
-        void budgetRepo
 
         // Mark app as ready so the user sees the tabs immediately
         setIsReady(true)
